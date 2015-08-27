@@ -47,17 +47,16 @@ def Main(args):
     return 1
 
   # Ensure that we're in a catapult checkout.
-  git_command_failed = False
+  inside_git_repo = True
   origin_url = ''
 
   try:
     origin_url = subprocess.check_output('git config --get remote.origin.url',
                                          shell=True)
   except subprocess.CalledProcessError:
-    # git config returned an error, meaning that we're not in a git repo.
-    git_command_failed = True
+    inside_git_repo = False
 
-  if git_command_failed or 'catapult' not in origin_url:
+  if not inside_git_repo or 'catapult' not in origin_url:
     print('Command must be run from inside the catapult repo.')
     return 1
 

@@ -28,13 +28,13 @@ import urllib2
 def Main(args):
   if len(args) != 2:
     print("Usage: update_v8 <target_os> <target_channel>")
-    sys.exit(1)
+    return 1
 
   target_os = args[0]
   target_channel = args[1]
 
-  check_valid_target_os(target_os)
-  check_valid_target_channel(target_channel)
+  if !(is_valid_os(target_os) and is_valid_channel(target_channel))
+    return 1
 
   # Fetch the current version map from omahaproxy
   response = urllib2.urlopen('https://omahaproxy.appspot.com/all.json')
@@ -51,34 +51,43 @@ def Main(args):
   # channel, and build the d8 binary
   v8_checkout_path = tempfile.mkdtemp()
   with (cd(v8_checkout_path)):
-    print os.getcwd()
-    subprocess.call('fetch v8', shell=True)
+    subprocess.check_call('fetch v8', shell=True)
 
     with(cd('v8')):
-      subprocess.call('git checkout {0}'.format(v8_version), shell=True)
+      subprocess.check_call('git checkout {0}'.format(v8_version), shell=True)
 
       os.environ['GYP_GENERATORS'] = 'ninja'
-      subprocess.call('build/gyp_v8 -Dtarget_arch=x64', shell=True)
-      subprocess.call('ninja -C out/Release d8', shell=True)
+      subprocess.check_call('build/gyp_v8 -Dtarget_arch=x64', shell=True)
+      subprocess.check_call('ninja -C out/Release d8', shell=True)
 
   # Move the d8 binary into place
+  v8_dir = 'third_party/vinn/third_party/v8'
   d8_src = '{0}/v8/out/Release/d8'.format(v8_checkout_path)
-  d8_dst = 'third_party/vinn/third_party/v8/{0}/x86_64/d8'.format(target_os)
+  d8_dst = '{0}/{1}/x86_64/d8'.format(v8_dir, target_os)
 
-  subprocess.call('mv {0} {1}'.format(d8_src, d8_dst), shell=True)
+  subprocess.check_call('mv {0} {1}'.format(d8_src, d8_dst), shell=True)
 
-def check_valid_target_os(target_os):
+  # Update the v8 version number in its README.chromium file
+  sed_command = 's/\([0-9\.]*\) ({0})/{1} ({0})/g'.format(target_os, v8_version)
+  full_sed_command = 'sed -i '' {0} {1}/README.chromium'.format(sed_command, v8_dir)
+
+  subprocess.check_call(full_sed_command, shell=True)
+
+  return 0
+
+def is_valid_os(target_os):
   valid_os_list = ['linux', 'mac', 'win']
   if target_os not in valid_os_list:
     print('Invalid target OS. Valid: {0}'.format(valid_os_list))
-    sys.exit(1)
+    return 1
 
-def check_valid_target_channel(target_channel):
+def is_valid_channel(target_channel):
   valid_channel_list = ['stable', 'canary', 'beta', 'dev']
   if target_channel not in valid_channel_list:
     print('Invalid target channel. Valid: {0}'.format(valid_channel_list))
-    sys.exit(1)
+    return 1
 
+# Provides a context manager that changes the working directory while in scope
 @contextlib.contextmanager
 def cd(new_path):
   old_path = os.getcwd()

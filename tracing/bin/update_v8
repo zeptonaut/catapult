@@ -1,0 +1,92 @@
+#!/usr/bin/env python
+# Copyright 2015 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+"""Updates the 64 bit d8 binary for the specified target OS to match the v8
+version used in the current version of the specified Chromium channel.
+
+Currently, we can only update the d8 binary for the operating system that we're
+building on.
+
+This script assumes that git is installed and the computer meets all
+other prerequisites to build v8 normally (like having depot_tools installed and
+in the path).
+
+Example usage:
+$ tracing/bin/update_v8 linux stable
+"""
+
+import contextlib
+import json
+import os
+import subprocess
+import sys
+import tempfile
+import urllib2
+
+def Main(args):
+  if len(args) != 2:
+    print("Usage: update_v8 <target_os> <target_channel>")
+    sys.exit(1)
+
+  target_os = args[0]
+  target_channel = args[1]
+
+  check_valid_target_os(target_os)
+  check_valid_target_channel(target_channel)
+
+  # Fetch the current version map from omahaproxy
+  response = urllib2.urlopen('https://omahaproxy.appspot.com/all.json')
+  versions = json.loads(response.read())
+
+  # Find the v8 version that corresponds to the current target OS and target channel
+  v8_version = None
+  for curr_os in versions:
+    for curr_version in curr_os['versions']:
+      if curr_version['os'] == target_os and curr_version['channel'] == target_channel:
+        v8_version = curr_version['v8_version']
+
+  # Clone v8, checkout the version that corresponds to our target OS and target
+  # channel, and build the d8 binary
+  v8_checkout_path = tempfile.mkdtemp()
+  with (cd(v8_checkout_path)):
+    print os.getcwd()
+    subprocess.call('fetch v8', shell=True)
+
+    with(cd('v8')):
+      subprocess.call('git checkout {0}'.format(v8_version), shell=True)
+
+      os.environ['GYP_GENERATORS'] = 'ninja'
+      subprocess.call('build/gyp_v8 -Dtarget_arch=x64', shell=True)
+      subprocess.call('ninja -C out/Release d8', shell=True)
+
+  # Move the d8 binary into place
+  d8_src = '{0}/v8/out/Release/d8'.format(v8_checkout_path)
+  d8_dst = 'third_party/vinn/third_party/v8/{0}/x86_64/d8'.format(target_os)
+
+  subprocess.call('mv {0} {1}'.format(d8_src, d8_dst), shell=True)
+
+def check_valid_target_os(target_os):
+  valid_os_list = ['linux', 'mac', 'win']
+  if target_os not in valid_os_list:
+    print('Invalid target OS. Valid: {0}'.format(valid_os_list))
+    sys.exit(1)
+
+def check_valid_target_channel(target_channel):
+  valid_channel_list = ['stable', 'canary', 'beta', 'dev']
+  if target_channel not in valid_channel_list:
+    print('Invalid target channel. Valid: {0}'.format(valid_channel_list))
+    sys.exit(1)
+
+@contextlib.contextmanager
+def cd(new_path):
+  old_path = os.getcwd()
+  os.chdir(os.path.expanduser(new_path))
+  try:
+    yield
+  finally:
+    os.chdir(old_path)
+
+if __name__ == '__main__':
+  sys.exit(Main(sys.argv[1:]))

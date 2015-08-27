@@ -25,69 +25,88 @@ import sys
 import tempfile
 import urllib2
 
+OMAHAPROXY_VERSION_MAP_URL = 'https://omahaproxy.appspot.com/all.json'
+V8_DIR = 'third_party/vinn/third_party/v8'
+VALID_OS_LIST = ['linux', 'mac', 'win']
+VALID_CHANNEL_LIST = ['stable', 'canary', 'beta', 'dev']
+
 def Main(args):
   if len(args) != 2:
-    print("Usage: update_v8 <target_os> <target_channel>")
+    print('Usage: update_v8 <target_os> <target_channel>')
     return 1
 
   target_os = args[0]
   target_channel = args[1]
 
-  if !(is_valid_os(target_os) and is_valid_channel(target_channel))
+  if target_os not in VALID_OS_LIST:
+    print('Invalid target OS. Valid: {0}'.format(VALID_OS_LIST))
     return 1
 
-  # Fetch the current version map from omahaproxy
-  response = urllib2.urlopen('https://omahaproxy.appspot.com/all.json')
+  if target_channel not in VALID_CHANNEL_LIST:
+    print('Invalid target channel. Valid: {0}'.format(VALID_CHANNEL_LIST))
+    return 1
+
+  # Ensure that we're in a catapult checkout.
+  git_command_failed = False
+  origin_url = ''
+
+  try:
+    origin_url = subprocess.check_output('git config --get remote.origin.url',
+                                         shell=True)
+  except subprocess.CalledProcessError:
+    # git config returned an error, meaning that we're not in a git repo.
+    git_command_failed = True
+
+  if git_command_failed or 'catapult' not in origin_url:
+    print('Command must be run from inside the catapult repo.')
+    return 1
+
+  # Fetch the current version map from omahaproxy.
+  response = urllib2.urlopen(OMAHAPROXY_VERSION_MAP_URL)
   versions = json.loads(response.read())
 
-  # Find the v8 version that corresponds to the current target OS and target channel
+  # Find the v8 version that corresponds to the current target OS and target
+  # channel.
   v8_version = None
   for curr_os in versions:
     for curr_version in curr_os['versions']:
-      if curr_version['os'] == target_os and curr_version['channel'] == target_channel:
+      if (curr_version['os'] == target_os and
+          curr_version['channel'] == target_channel):
         v8_version = curr_version['v8_version']
 
   # Clone v8, checkout the version that corresponds to our target OS and target
-  # channel, and build the d8 binary
+  # channel, and build the d8 binary.
   v8_checkout_path = tempfile.mkdtemp()
-  with (cd(v8_checkout_path)):
+  with cd(v8_checkout_path):
     subprocess.check_call('fetch v8', shell=True)
 
-    with(cd('v8')):
+    with cd('v8'):
       subprocess.check_call('git checkout {0}'.format(v8_version), shell=True)
 
       os.environ['GYP_GENERATORS'] = 'ninja'
       subprocess.check_call('build/gyp_v8 -Dtarget_arch=x64', shell=True)
       subprocess.check_call('ninja -C out/Release d8', shell=True)
 
-  # Move the d8 binary into place
-  v8_dir = 'third_party/vinn/third_party/v8'
-  d8_src = '{0}/v8/out/Release/d8'.format(v8_checkout_path)
-  d8_dst = '{0}/{1}/x86_64/d8'.format(v8_dir, target_os)
+  # Move the d8 binary into place.
+  project_root = subprocess.check_output('git rev-parse --show-toplevel',
+                                         shell=True).replace('\n', '')
 
-  subprocess.check_call('mv {0} {1}'.format(d8_src, d8_dst), shell=True)
+  with cd(project_root):
+    print os.getcwd()
+    d8_src = '{0}/v8/out/Release/d8'.format(v8_checkout_path)
+    d8_dst = '{0}/{1}/x86_64/d8'.format(V8_DIR, target_os)
 
-  # Update the v8 version number in its README.chromium file
-  sed_command = 's/\([0-9\.]*\) ({0})/{1} ({0})/g'.format(target_os, v8_version)
-  full_sed_command = 'sed -i '' {0} {1}/README.chromium'.format(sed_command, v8_dir)
+    subprocess.check_call('mv {0} {1}'.format(d8_src, d8_dst), shell=True)
 
-  subprocess.check_call(full_sed_command, shell=True)
+    # Update the v8 version number in its README.chromium file.
+    sed_cmd = 's/\([0-9\.]*\) ({0})/{1} ({0})/g'.format(target_os, v8_version)
+    full_sed_cmd = 'sed -i "" "{0}" {1}/README.chromium'.format(sed_cmd, V8_DIR)
+
+    subprocess.check_call(full_sed_cmd, shell=True)
 
   return 0
 
-def is_valid_os(target_os):
-  valid_os_list = ['linux', 'mac', 'win']
-  if target_os not in valid_os_list:
-    print('Invalid target OS. Valid: {0}'.format(valid_os_list))
-    return 1
-
-def is_valid_channel(target_channel):
-  valid_channel_list = ['stable', 'canary', 'beta', 'dev']
-  if target_channel not in valid_channel_list:
-    print('Invalid target channel. Valid: {0}'.format(valid_channel_list))
-    return 1
-
-# Provides a context manager that changes the working directory while in scope
+# Provides a context manager that changes the working directory while in scope.
 @contextlib.contextmanager
 def cd(new_path):
   old_path = os.getcwd()

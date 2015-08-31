@@ -8,4 +8,4 @@ Security Critical: no
 Description: d8 binaries is used for executing trace-viewer's trace analyzing
 code.
 Local modifications: We ignore the source code & only keep the d8 binaries. Use
-tracing/bin/update_v8 to update the binary.
+tracing/bin/update_v8 to update the binary on your current OS.

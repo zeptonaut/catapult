@@ -3,22 +3,21 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-"""Updates the 64 bit d8 binary for the specified target OS to match the v8
-version used in the current version of the specified Chromium channel.
-
-Currently, we can only update the d8 binary for the operating system that we're
-building on.
+"""Updates the 64 bit d8 binary for the current OS to match the v8 version used
+in the current version of the specified Chromium channel. If no channel is
+specified, we default ot the 'stable' channel.
 
 This script assumes that git is installed and the computer meets all
 other prerequisites to build v8 normally (like having depot_tools installed and
 in the path).
 
 Example usage:
-$ tracing/bin/update_v8 linux stable
+$ tracing/bin/update_v8
 """
 
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -36,39 +35,55 @@ V8_CHECKOUT_BINARY_PATH = os.path.join('v8', 'out', 'Release', 'd8')
 V8_GENERATE_GYP_CMD = '{0} -Dtarget_arch=x64'.format(os.path.join('build', 'gyp_v8'))
 V8_COMPILE_CMD = 'ninja -C {0} d8'.format(os.path.join('out', 'Release'))
 
-VALID_OS_LIST = ['linux', 'mac', 'win']
 VALID_CHANNEL_LIST = ['stable', 'canary', 'beta', 'dev']
 
+# Dict from the possible values for Python's sys.platform to the corresponding
+# Chromium OS name.
+PYTHON_PLATFORM_TO_CHROME_OS = {
+  'linux': 'linux',
+  'linux2': 'linux',
+  'darwin': 'mac',
+  'win32': 'win',
+  'cygwin': 'win'
+}
+
 def Main(args):
-
-  if len(args) != 2:
-    print('Usage: update_v8 <target_os> <target_channel>')
+  if len(args) > 1:
+    print('Usage: update_v8 [TARGET_CHANNEL]')
     return 1
 
-  target_os = args[0]
-  target_channel = args[1]
-
-  if target_os not in VALID_OS_LIST:
-    print('Invalid target OS. Valid: {0}'.format(VALID_OS_LIST))
-    return 1
+  target_os = get_current_os()
+  target_channel = args[0] if len(args) == 1 else 'stable'
 
   if target_channel not in VALID_CHANNEL_LIST:
     print('Invalid target channel. Valid: {0}'.format(VALID_CHANNEL_LIST))
     return 1
 
+  with cd(get_catapult_root_path()):
+    v8_version = get_v8_version(target_os, target_channel)
+    update_v8_binary(v8_version, target_os)
+    update_readme_file(v8_version, target_os)
+
+  return 0
+
+def get_v8_version(target_os, target_channel):
+  """Returns the v8 version that corresponds to the specified OS and channel."""
   # Fetch the current version map from omahaproxy.
   response = urllib2.urlopen(OMAHAPROXY_VERSION_MAP_URL)
   versions = json.loads(response.read())
 
-  # Find the v8 version that corresponds to the current target OS and target
-  # channel.
+  # Return the v8 version that corresponds to the target OS and channel in the
+  # version map.
   v8_version = None
   for curr_os in versions:
     for curr_version in curr_os['versions']:
       if (curr_version['os'] == target_os and
           curr_version['channel'] == target_channel):
-        v8_version = curr_version['v8_version']
+        return curr_version['v8_version']
 
+def update_v8_binary(v8_version, target_os):
+  """Updates the catapult V8 binary for the specified OS to be the specified V8
+  version."""
   # Clone v8, checkout the version that corresponds to our target OS and target
   # channel, and build the d8 binary.
   with tmpdir() as v8_checkout_path:
@@ -82,22 +97,26 @@ def Main(args):
         subprocess.check_call(V8_COMPILE_CMD, shell=True)
 
     # Move the d8 binary into place.
-    project_root_path = os.path.join(os.path.dirname(__file__),
-                                     os.path.pardir,
-                                     os.path.pardir)
     d8_src = os.path.join(v8_checkout_path, V8_CHECKOUT_BINARY_PATH)
-    d8_dst = os.path.join(project_root_path, V8_BINARY_PATH.format(target_os))
+    d8_dst = V8_BINARY_PATH.format(target_os)
 
     shutil.move(d8_src, d8_dst)
 
-    # Update the v8 version number in its README.chromium file.
-    # TODO: Do this replacement with python replace API
-    # sed_cmd = 's/\([0-9\.]*\) ({0})/{1} ({0})/g'.format(target_os, v8_version)
-    # full_sed_cmd = 'sed -i "" "{0}" {1}/README.chromium'.format(sed_cmd, V8_PATH)
-    #
-    # subprocess.check_call(full_sed_cmd, shell=True)
+def update_readme_file(v8_version, target_os):
+  new_readme_contents = ''
+  with open(V8_README_PATH, 'r') as v8_readme:
+    new_readme_contents = re.sub(r'[0-9\.]+ \({0}\)'.format(target_os),
+                                 r'{0} ({1})'.format(v8_version, target_os),
+                                 v8_readme.read())
 
-  return 0
+  with open(V8_README_PATH, 'w') as v8_readme:
+    v8_readme.write(new_readme_contents)
+
+def get_catapult_root_path():
+  return os.path.join(os.path.dirname(__file__), os.path.pardir, os.path.pardir)
+
+def get_current_os():
+  return PYTHON_PLATFORM_TO_CHROME_OS[sys.platform]
 
 class cd:
   """A context manager that changes a directory while in scope."""
@@ -123,4 +142,3 @@ class tmpdir:
 
 if __name__ == '__main__':
   sys.exit(Main(sys.argv[1:]))
-

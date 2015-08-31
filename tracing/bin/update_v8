@@ -17,20 +17,30 @@ Example usage:
 $ tracing/bin/update_v8 linux stable
 """
 
-import contextlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
 import urllib2
 
 OMAHAPROXY_VERSION_MAP_URL = 'https://omahaproxy.appspot.com/all.json'
-V8_DIR = 'third_party/vinn/third_party/v8'
+
+V8_PATH = os.path.join('third_party', 'vinn', 'third_party', 'v8')
+# The target OS goes in this path, so we leave a hook for it.
+V8_BINARY_PATH = os.path.join(V8_PATH, '{0}', 'x86_64', 'd8')
+V8_README_PATH = os.path.join(V8_PATH, 'README.chromium')
+
+V8_CHECKOUT_BINARY_PATH = os.path.join('v8', 'out', 'Release', 'd8')
+V8_GENERATE_GYP_CMD = '{0} -Dtarget_arch=x64'.format(os.path.join('build', 'gyp_v8'))
+V8_COMPILE_CMD = 'ninja -C {0} d8'.format(os.path.join('out', 'Release'))
+
 VALID_OS_LIST = ['linux', 'mac', 'win']
 VALID_CHANNEL_LIST = ['stable', 'canary', 'beta', 'dev']
 
 def Main(args):
+
   if len(args) != 2:
     print('Usage: update_v8 <target_os> <target_channel>')
     return 1
@@ -44,20 +54,6 @@ def Main(args):
 
   if target_channel not in VALID_CHANNEL_LIST:
     print('Invalid target channel. Valid: {0}'.format(VALID_CHANNEL_LIST))
-    return 1
-
-  # Ensure that we're in a catapult checkout.
-  inside_git_repo = True
-  origin_url = ''
-
-  try:
-    origin_url = subprocess.check_output('git config --get remote.origin.url',
-                                         shell=True)
-  except subprocess.CalledProcessError:
-    inside_git_repo = False
-
-  if not inside_git_repo or 'catapult' not in origin_url:
-    print('Command must be run from inside the catapult repo.')
     return 1
 
   # Fetch the current version map from omahaproxy.
@@ -75,45 +71,56 @@ def Main(args):
 
   # Clone v8, checkout the version that corresponds to our target OS and target
   # channel, and build the d8 binary.
-  v8_checkout_path = tempfile.mkdtemp()
-  with cd(v8_checkout_path):
-    subprocess.check_call('fetch v8', shell=True)
+  with tmpdir() as v8_checkout_path:
+    with cd(v8_checkout_path):
+      subprocess.check_call('fetch v8', shell=True)
+      with cd('v8'):
+        subprocess.check_call('git checkout {0}'.format(v8_version), shell=True)
 
-    with cd('v8'):
-      subprocess.check_call('git checkout {0}'.format(v8_version), shell=True)
+        os.environ['GYP_GENERATORS'] = 'ninja'
+        subprocess.check_call(V8_GENERATE_GYP_CMD, shell=True)
+        subprocess.check_call(V8_COMPILE_CMD, shell=True)
 
-      os.environ['GYP_GENERATORS'] = 'ninja'
-      subprocess.check_call('build/gyp_v8 -Dtarget_arch=x64', shell=True)
-      subprocess.check_call('ninja -C out/Release d8', shell=True)
+    # Move the d8 binary into place.
+    project_root_path = os.path.join(os.path.dirname(__file__),
+                                     os.path.pardir,
+                                     os.path.pardir)
+    d8_src = os.path.join(v8_checkout_path, V8_CHECKOUT_BINARY_PATH)
+    d8_dst = os.path.join(project_root_path, V8_BINARY_PATH.format(target_os))
 
-  # Move the d8 binary into place.
-  project_root = subprocess.check_output('git rev-parse --show-toplevel',
-                                         shell=True).replace('\n', '')
-
-  with cd(project_root):
-    print os.getcwd()
-    d8_src = '{0}/v8/out/Release/d8'.format(v8_checkout_path)
-    d8_dst = '{0}/{1}/x86_64/d8'.format(V8_DIR, target_os)
-
-    subprocess.check_call('mv {0} {1}'.format(d8_src, d8_dst), shell=True)
+    shutil.move(d8_src, d8_dst)
 
     # Update the v8 version number in its README.chromium file.
-    sed_cmd = 's/\([0-9\.]*\) ({0})/{1} ({0})/g'.format(target_os, v8_version)
-    full_sed_cmd = 'sed -i "" "{0}" {1}/README.chromium'.format(sed_cmd, V8_DIR)
-
-    subprocess.check_call(full_sed_cmd, shell=True)
+    # TODO: Do this replacement with python replace API
+    # sed_cmd = 's/\([0-9\.]*\) ({0})/{1} ({0})/g'.format(target_os, v8_version)
+    # full_sed_cmd = 'sed -i "" "{0}" {1}/README.chromium'.format(sed_cmd, V8_PATH)
+    #
+    # subprocess.check_call(full_sed_cmd, shell=True)
 
   return 0
 
-# Provides a context manager that changes the working directory while in scope.
-@contextlib.contextmanager
-def cd(new_path):
-  old_path = os.getcwd()
-  os.chdir(os.path.expanduser(new_path))
-  try:
-    yield
-  finally:
-    os.chdir(old_path)
+class cd:
+  """A context manager that changes a directory while in scope."""
+  def __init__(self, newPath):
+    self.newPath = newPath
+
+  def __enter__(self):
+    self.oldPath = os.getcwd()
+    os.chdir(self.newPath)
+
+  def __exit__(self, etype, value, traceback):
+    os.chdir(self.oldPath)
+
+class tmpdir:
+  """A context manager that creates a temporary directory while in scope."""
+  def __enter__(self):
+    self.path = tempfile.mkdtemp()
+    print "creating {0}".format(self.path)
+    return self.path
+
+  def __exit__(self, etype, value, traceback):
+    shutil.rmtree(self.path)
 
 if __name__ == '__main__':
   sys.exit(Main(sys.argv[1:]))
+z

@@ -5,11 +5,11 @@
 
 """Updates the 64 bit d8 binary for the current OS to match the v8 version used
 in the current version of the specified Chromium channel. If no channel is
-specified, we default ot the 'stable' channel.
+specified, we default to the 'stable' channel.
 
 This script assumes that git is installed and the computer meets all
 other prerequisites to build v8 normally (like having depot_tools installed and
-in the path).
+in $PATH).
 
 Example usage:
 $ tracing/bin/update_v8
@@ -52,12 +52,12 @@ def Main(args):
     print('Usage: update_v8 [TARGET_CHANNEL]')
     return 1
 
-  target_os = get_current_os()
   target_channel = args[0] if len(args) == 1 else 'stable'
-
   if target_channel not in VALID_CHANNEL_LIST:
     print('Invalid target channel. Valid: {0}'.format(VALID_CHANNEL_LIST))
     return 1
+
+  target_os = get_current_os()
 
   with cd(get_catapult_root_path()):
     v8_version = get_v8_version(target_os, target_channel)
@@ -103,19 +103,24 @@ def update_v8_binary(v8_version, target_os):
     shutil.move(d8_src, d8_dst)
 
 def update_readme_file(v8_version, target_os):
+  """Updates the V8 version number in the V8 README.chromium file."""
+  # Get the contents of the new README file with the replaced version number.
   new_readme_contents = ''
   with open(V8_README_PATH, 'r') as v8_readme:
     new_readme_contents = re.sub(r'[0-9\.]+ \({0}\)'.format(target_os),
                                  r'{0} ({1})'.format(v8_version, target_os),
                                  v8_readme.read())
 
+  # Overwrite the old README file with the new one.
   with open(V8_README_PATH, 'w') as v8_readme:
     v8_readme.write(new_readme_contents)
 
 def get_catapult_root_path():
+  """Returns the path to the catapult root from the current OS."""
   return os.path.join(os.path.dirname(__file__), os.path.pardir, os.path.pardir)
 
 def get_current_os():
+  """Returns Chromium's name for the current OS."""
   return PYTHON_PLATFORM_TO_CHROME_OS[sys.platform]
 
 class cd:

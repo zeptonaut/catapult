@@ -43,6 +43,13 @@ tr.exportTo('tr.ui.tracks', function() {
     decorate: function(viewport) {
       tr.ui.tracks.ContainerTrack.prototype.decorate.call(this, viewport);
       this.classList.add('model-track');
+      this.pinnedTrackContainer_ = this.appendChild(document.createElement('div'));
+      this.pinnedTrackContainer_.classList.add('pinned');
+      this.normalTrackContainer_ = this.appendChild(document.createElement('div'));
+      this.normalTrackContainer_.classList.add('normal');
+
+      this.appendChild(this.pinnedTrackContainer_);
+      this.appendChild(this.normalTrackContainer_);
 
       var typeInfos = tr.ui.tracks.Highlighter.getAllRegisteredTypeInfos();
       this.highlighters_ = typeInfos.map(
@@ -99,26 +106,28 @@ tr.exportTo('tr.ui.tracks', function() {
     },
 
     updateContentsForLowerMode_: function() {
+      this.appendDeviceTrack_();
+
       if (this.model_.interactionRecords.length) {
         var mrt = new tr.ui.tracks.InteractionTrack(this.viewport_);
         mrt.model = this.model_;
-        this.appendChild(mrt);
+        this.normalTrackContainer_.appendChild(mrt);
       }
 
       if (this.model_.alerts.length) {
         var at = new tr.ui.tracks.AlertTrack(this.viewport_);
         at.alerts = this.model_.alerts;
-        this.appendChild(at);
+        this.normalTrackContainer_.appendChild(at);
       }
 
       if (this.model_.globalMemoryDumps.length) {
         var gmdt = new tr.ui.tracks.GlobalMemoryDumpTrack(this.viewport_);
         gmdt.memoryDumps = this.model_.globalMemoryDumps;
-        this.appendChild(gmdt);
+        this.normalTrackContainer_.appendChild(gmdt);
       }
 
-      this.appendDeviceTrack_();
       this.appendKernelTrack_();
+
 
       // Get a sorted list of processes.
       var processes = this.model_.getAllProcesses();
@@ -132,7 +141,7 @@ tr.exportTo('tr.ui.tracks', function() {
         if (!track.hasVisibleContent)
           continue;
 
-        this.appendChild(track);
+        this.normalTrackContainer_.appendChild(track);
       }
       this.viewport_.rebuildEventToTrackMap();
       this.viewport_.rebuildContainerToTrackMap();
@@ -183,7 +192,7 @@ tr.exportTo('tr.ui.tracks', function() {
       track.device = this.model.device;
       if (!track.hasVisibleContent)
         return;
-      this.appendChild(track);
+      this.normalTrackContainer_.appendChild(track);
     },
 
     appendKernelTrack_: function() {
@@ -192,7 +201,7 @@ tr.exportTo('tr.ui.tracks', function() {
       track.kernel = this.model.kernel;
       if (!track.hasVisibleContent)
         return;
-      this.appendChild(track);
+      this.normalTrackContainer_.appendChild(track);
     },
 
     drawTrack: function(type) {

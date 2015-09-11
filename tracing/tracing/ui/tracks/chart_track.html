@@ -47,6 +47,9 @@ tr.exportTo('tr.ui.tracks', function() {
       this.bottomPadding_ = undefined;
 
       this.heading_ = document.createElement('tr-ui-heading');
+      this.heading_.addEventListener('click', function() {
+        window.alert('hello, pawpet!');
+      });
       this.appendChild(this.heading_);
     },
 

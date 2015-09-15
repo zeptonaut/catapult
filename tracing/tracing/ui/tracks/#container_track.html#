@@ -115,8 +115,8 @@ tr.exportTo('tr.ui.tracks', function() {
     },
 
     addContainersToTrackMap: function(containerToTrackMap) {
-      this.tracks_.forEach(function(track) {
-        track.addContainersToTrackMap(containerToTrackMap);
+      this.tracks_.forEach(function(track) { 
+       track.addContainersToTrackMap(containerToTrackMap);
       });
     },
 

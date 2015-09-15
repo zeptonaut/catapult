@@ -50,11 +50,6 @@ tr.exportTo('tr.ui.tracks', function() {
           return new typeInfo.constructor(viewport);
         });
 
-      this.pinnedTracks_ = new tr.ui.tracks.ContainerTrack(viewport);
-      this.appendChild(this.pinnedTracks_);
-      this.unpinnedTracks_ = new tr.ui.tracks.ContainerTrack(viewport);
-      this.appendChild(this.unpinnedTracks_);
-
       this.upperMode_ = false;
       this.annotationViews_ = [];
     },
@@ -64,7 +59,7 @@ tr.exportTo('tr.ui.tracks', function() {
       return this.upperMode_;
     },
 
-    set upperMode(upperMode) {``
+    set upperMode(upperMode) {
       this.upperMode_ = upperMode;
       this.updateContents_();
     },
@@ -107,19 +102,19 @@ tr.exportTo('tr.ui.tracks', function() {
       if (this.model_.interactionRecords.length) {
         var mrt = new tr.ui.tracks.InteractionTrack(this.viewport_);
         mrt.model = this.model_;
-        this.unpinnedTracks_.appendChild(mrt);
+        this.appendChild(mrt);
       }
 
       if (this.model_.alerts.length) {
         var at = new tr.ui.tracks.AlertTrack(this.viewport_);
         at.alerts = this.model_.alerts;
-        this.unpinnedTracks_.appendChild(at);
+        this.appendChild(at);
       }
 
       if (this.model_.globalMemoryDumps.length) {
         var gmdt = new tr.ui.tracks.GlobalMemoryDumpTrack(this.viewport_);
         gmdt.memoryDumps = this.model_.globalMemoryDumps;
-        this.unpinnedTracks_.appendChild(gmdt);
+        this.appendChild(gmdt);
       }
 
       this.appendDeviceTrack_();
@@ -137,7 +132,7 @@ tr.exportTo('tr.ui.tracks', function() {
         if (!track.hasVisibleContent)
           continue;
 
-        this.unpinnedTracks_.appendChild(track);
+        this.appendChild(track);
       }
       this.viewport_.rebuildEventToTrackMap();
       this.viewport_.rebuildContainerToTrackMap();
@@ -163,9 +158,6 @@ tr.exportTo('tr.ui.tracks', function() {
       if (!this.model_)
         return;
 
-      this.pinnedTracks_.addEventsToTrackMap(eventToTrackMap);
-      this.unpinnedTracks_.addEventsToTrackMap(eventToTrackMap);
-
       var tracks = this.children;
       for (var i = 0; i < tracks.length; ++i)
         tracks[i].addEventsToTrackMap(eventToTrackMap);
@@ -179,19 +171,13 @@ tr.exportTo('tr.ui.tracks', function() {
       }.bind(this));
     },
 
-    addContainersToTrackMap: function(containerToTrackMap) {
-      var tracks = this.children;
-      for (var i = 0; i < tracks.length; ++i)
-        tracks[i].addContainersToTrackMap(containerToTrackMap);
-    },
-
     appendDeviceTrack_: function() {
       var device = this.model.device;
       var track = new tr.ui.tracks.DeviceTrack(this.viewport);
       track.device = this.model.device;
       if (!track.hasVisibleContent)
         return;
-      this.unpinnedTracks_.appendChild(track);
+      this.appendChild(track);
     },
 
     appendKernelTrack_: function() {
@@ -200,7 +186,7 @@ tr.exportTo('tr.ui.tracks', function() {
       track.kernel = this.model.kernel;
       if (!track.hasVisibleContent)
         return;
-      this.unpinnedTracks_.appendChild(track);
+      this.appendChild(track);
     },
 
     drawTrack: function(type) {

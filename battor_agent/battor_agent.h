@@ -17,5 +17,5 @@ class BattOrAgent {
  private:
   std::string path;
 };
-  
+
 }  // namespace battor

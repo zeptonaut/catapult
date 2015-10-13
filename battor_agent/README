@@ -1,0 +1,16 @@
+<!-- Copyright 2015 The Chromium Authors. All rights reserved.
+     Use of this source code is governed by a BSD-style license that can be
+     found in the LICENSE file.
+-->
+
+# BattOr Agent
+
+The BattOr Agent is a C++ library that allows the user to send three
+high-level tracing commands to the BattOr:
+
+* StartTracing
+* RecordClockSyncMarker
+* StopTracing
+
+For those calling the agent from non-C++ code, we also provide a thin
+binary wrapper around the C++ library.

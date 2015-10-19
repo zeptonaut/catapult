@@ -55,6 +55,9 @@ int main(int argc, char* argv[]) {
     cout << "Calling StopTracing()" << endl;
 
     battor::BattOrAgent(path).StopTracing();
+  } else {
+    PrintUsage();
+    return 1;
   }
 
   return 0;

@@ -95,6 +95,10 @@ tr.exportTo('tr.ui.tracks', function() {
         this.updateContentsForLowerMode_();
     },
 
+    shiftTracks: function() {
+      this.childNodes.push(this.childNodes.shift());
+    },
+
     updateContentsForUpperMode_: function() {
     },
 

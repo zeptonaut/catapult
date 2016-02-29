@@ -469,6 +469,14 @@ found in the LICENSE file.
           e.stopPropagation();
         }
       });
+
+      addBinding({
+        keyCode: 'j'.charCodeAt(0),
+        callback: function(e) {
+          this.shiftTracks_();
+          e.stopPropagation();
+        }
+      })
     },
 
     get viewWidth_() {
@@ -752,6 +760,11 @@ found in the LICENSE file.
     toggleHighDetails_: function() {
       this.viewport_.highDetails = !this.viewport_.highDetails;
     },
+
+
+     shiftTracks_: function() {
+       this.modelTrack_.shiftTracks();
+     },
 
     hideDragBox_: function() {
       this.$.drag_box.style.left = '-1000px';

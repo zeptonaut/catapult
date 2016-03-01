@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<!--
+Copyright 2015 The Chromium Authors. All rights reserved.
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+-->
+
+<link rel="import" href="/tracing/model/clock_sync_manager.html">
+
+<script>
+'use strict';
+
+tr.b.unittest.testSuite(function() {
+
+  var ClockSyncManager = tr.model.ClockSyncManager;
+
+  test('masterClockDomain', function() {
+    var mgr = new ClockSyncManager();
+    mgr.masterClockDomain = "chrome";
+    assert.equal(mgr.masterClockDomain, "chrome");
+  });
+});
+</script>

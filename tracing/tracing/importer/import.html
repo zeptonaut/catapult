@@ -180,7 +180,7 @@ tr.exportTo('tr.importer', function() {
                                      function importClockSyncMarkers(task) {
         importers.forEach(function(importer, index) {
           task.subTask(Timing.wrapNamedFunction(
-            'TraceImporter', importer.importerName,
+            'TraceImport', importer.importerName,
             function runImportClockSyncMarkersOnOneImporter() {
               progressMeter.update(
                 'Importing clock sync markers ' + (index + 1) + ' of ' +

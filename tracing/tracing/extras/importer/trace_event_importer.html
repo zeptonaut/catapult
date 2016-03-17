@@ -755,13 +755,14 @@ tr.exportTo('tr.e.importer', function() {
         return;
       }
 
-      var clock_sync_args = {
-        duration: timestampFromUs(issue_end_ts - issue_start_ts)
-      };
+      this.model_.clockSyncManager.addClockSyncMarker(
+          getClockDomain_(), sync_id, timestampFromUs(issue_start_ts),
+          timestampFromUs(issue_end_ts - issue_start_ts));
+      // TODO(charliea): Remove this once the new clock sync system is fully
+      // implemented.
       this.model_.clockSyncRecords.push(new tr.model.PingPongClockSyncRecord(
-        sync_id, timestampFromUs(issue_start_ts),
-        timestampFromUs(issue_end_ts - issue_start_ts)
-      ));
+          sync_id, timestampFromUs(issue_start_ts),
+          timestampFromUs(issue_end_ts - issue_start_ts)));
     },
 
     // Because the order of Jit code events and V8 samples are not guaranteed,
@@ -787,9 +788,29 @@ tr.exportTo('tr.e.importer', function() {
       }
     },
 
-
     importClockSyncEvents: function() {
+      this.clockSyncManager.addClockSyncMarker(
+          getClockDomain_(), 'ftrace_sync', 0);
+      // TODO(charliea): Remove this once we're fully moved over to using the
+      // clockSyncManager.
+      var ftraceClockSyncMarker =
+          new tr.model.InstantClockSyncRecord('ftrace_importer', 0, {});
+      this.model_.clockSyncRecords.push(ftraceClockSyncMarker);
+      // Force this trace to be the model clock domain by adding a second sync
+      // attached to it. In the long run, it won't matter which viable clock
+      // domain is made to be the model clock domain, but for now it does
+      // because the other clock sync mechanism makes assumptions about what
+      // the model domain is.
+      this.clockSyncManager.addClockSyncMarker(
+          getClockDomain_(), 'fake_sync', 0);
+      this.clockSyncManager.addClockSyncMarker('fake_domain', 'fake_sync', 0);
 
+      for (var i = 0; i < this.events_.length; i++) {
+        var event = this.events_[i];
+
+        if (event.ph === 'c')
+          this.processClockSyncEvent(event);
+      }
     },
 
     /**
@@ -797,8 +818,6 @@ tr.exportTo('tr.e.importer', function() {
      * model_.
      */
     importEvents: function() {
-      var csr = new tr.model.InstantClockSyncRecord('ftrace_importer', 0, {});
-      this.model_.clockSyncRecords.push(csr);
       if (this.stackFrameEvents_)
         this.importStackFrames_(this.stackFrameEvents_, 'g');
 
@@ -887,9 +906,7 @@ tr.exportTo('tr.e.importer', function() {
           this.processMemoryDumpEvent(event);
 
         } else if (event.ph === 'c') {
-          modelStats.willProcessBasicTraceEvent(
-              'clock_sync', event.cat, event.name, event.ts, eventSizeInBytes);
-          this.processClockSyncEvent(event);
+          // No-op. Clock sync events have already been processed.
         } else {
           modelStats.willProcessBasicTraceEvent(
               'unknown', event.cat, event.name, event.ts, eventSizeInBytes);
@@ -2842,6 +2859,10 @@ tr.exportTo('tr.e.importer', function() {
           }
         }
       }
+    },
+
+    getTraceClockDomain_: function() {
+      return 'chrome';
     }
   };
 

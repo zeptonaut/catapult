@@ -133,6 +133,7 @@ tr.exportTo('tr.e.importer', function() {
     }
 
     this.traceAnnotations_ = this.events_.traceAnnotations;
+    this.clockDomain_ = this.extractClockDomain_(this.events_);
 
     // Some trace_event implementations put the actual trace events
     // inside a container. E.g { ... , traceEvents: [ ] }
@@ -790,7 +791,7 @@ tr.exportTo('tr.e.importer', function() {
 
     importClockSyncEvents: function() {
       this.clockSyncManager.addClockSyncMarker(
-          getClockDomain_(), 'ftrace_sync', 0);
+          this.clockDomain_, 'ftrace_sync', 0);
       // TODO(charliea): Remove this once we're fully moved over to using the
       // clockSyncManager.
       var ftraceClockSyncMarker =
@@ -802,7 +803,7 @@ tr.exportTo('tr.e.importer', function() {
       // because the other clock sync mechanism makes assumptions about what
       // the model domain is.
       this.clockSyncManager.addClockSyncMarker(
-          getClockDomain_(), 'fake_sync', 0);
+          this.clockDomain_, 'fake_sync', 0);
       this.clockSyncManager.addClockSyncMarker('fake_domain', 'fake_sync', 0);
 
       for (var i = 0; i < this.events_.length; i++) {
@@ -2861,8 +2862,21 @@ tr.exportTo('tr.e.importer', function() {
       }
     },
 
-    getTraceClockDomain_: function() {
-      return 'chrome';
+    extractClockDomain_: function(events) {
+      if (events.telemetry) {
+        return tr.model.ClockDomainId.TELEMETRY;
+      } else if (events.metadata && events.metadata['product-version'] &&
+          events.metadata['product-version'].indexOf('Chrome') != -1) {
+        // Chrome now stores its version number in a metadata subcategory
+        // named "product-version".
+        return tr.model.ClockDomainId.CHROME;
+      } else if (events.clientInfo && events.clientInfo.version &&
+          events.clientInfo.version.indexOf('Chrome') != -1) {
+        // Chrome used to store its version number if a clientInfo subcategory
+        // named "version".
+        return tr.model.ClockDomainId.CHROME;
+      }
+      return undefined;
     }
   };
 

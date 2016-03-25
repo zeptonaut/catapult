@@ -145,7 +145,8 @@ tr.exportTo('tr.e.importer', function() {
     }
 
     this.traceAnnotations_ = this.events_.traceAnnotations;
-    this.clockDomain_ = this.extractClockDomain_(this.events_);
+    // TODO(charliea): Extract from metadata instead.
+    this.clockDomain_ = "CHROME";
 
     // Some trace_event implementations put the actual trace events
     // inside a container. E.g { ... , traceEvents: [ ] }
@@ -769,13 +770,13 @@ tr.exportTo('tr.e.importer', function() {
       }
 
       this.model_.clockSyncManager.addClockSyncMarker(
-          getClockDomain_(), sync_id, timestampFromUs(issue_start_ts),
-          timestampFromUs(issue_end_ts - issue_start_ts));
+          getClockDomain_(), syncId, timestampFromUs(issueStartTs),
+          timestampFromUs(issueEndTs - issueStartTs));
       // TODO(charliea): Remove this once the new clock sync system is fully
       // implemented.
       this.model_.clockSyncRecords.push(new tr.model.PingPongClockSyncRecord(
-          sync_id, timestampFromUs(issue_start_ts),
-          timestampFromUs(issue_end_ts - issue_start_ts)));
+          syncId, timestampFromUs(issueStartTs),
+          timestampFromUs(issueEndTs - issueStartTs)));
     },
 
     // Because the order of Jit code events and V8 samples are not guaranteed,
@@ -821,6 +822,7 @@ tr.exportTo('tr.e.importer', function() {
       for (var i = 0; i < this.events_.length; i++) {
         var event = this.events_[i];
 
+        // TODO(charliea): We should probably be including this in the stats.
         if (event.ph === 'c')
           this.processClockSyncEvent(event);
       }
@@ -2886,23 +2888,6 @@ tr.exportTo('tr.e.importer', function() {
           }
         }
       }
-    },
-
-    extractClockDomain_: function(events) {
-      if (events.telemetry) {
-        return tr.model.ClockDomainId.TELEMETRY;
-      } else if (events.metadata && events.metadata['product-version'] &&
-          events.metadata['product-version'].indexOf('Chrome') != -1) {
-        // Chrome now stores its version number in a metadata subcategory
-        // named "product-version".
-        return tr.model.ClockDomainId.CHROME;
-      } else if (events.clientInfo && events.clientInfo.version &&
-          events.clientInfo.version.indexOf('Chrome') != -1) {
-        // Chrome used to store its version number if a clientInfo subcategory
-        // named "version".
-        return tr.model.ClockDomainId.CHROME;
-      }
-      return undefined;
     }
   };
 

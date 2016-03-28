@@ -401,24 +401,22 @@ tr.exportTo('tr.e.importer.linux_perf', function() {
       return thread;
     },
 
-
     /**
      * Imports clock sync markers into the model_.
      */
     importClockSyncMarkers: function() {
-      
+      this.parsers_ = this.createParsers_();
+      this.registerDefaultHandlers_();
+      this.parseLines();
+
+      this.importClockSyncMarkersImpl_();
     },
 
     /**
      * Imports the data in this.events_ into model_.
      */
     importEvents: function(isSecondaryImport) {
-      this.parsers_ = this.createParsers_();
-      this.registerDefaultHandlers_();
-      this.parseLines();
-
       // TODO(charliea): Do something reasonable with this time shift.
-
       var timeShift = this.computeTimeTransform();
       if (timeShift === undefined) {
         this.model_.importWarning({

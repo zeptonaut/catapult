@@ -685,6 +685,7 @@ tr.exportTo('tr.e.importer.linux_perf', function() {
       // TODO(skyostil): Compute a scaling factor if we have multiple clock sync
       // records.
       var sync = mSyncs[0].args;
+
       // NB: parentTS of zero denotes no times-shift; this is
       // used when user and kernel event clocks are identical.
       if (sync.parentTS == 0 || sync.parentTS == sync.perfTS)
@@ -775,7 +776,7 @@ tr.exportTo('tr.e.importer.linux_perf', function() {
         }
 
         this.model_.clockSyncManager.addClockSyncMarker(
-            tr.model.ClockDomainId.FTRACE, name, ts);
+            tr.model.ClockDomainId.LINUX_FTRACE_GLOBAL, name, ts);
 
         // TODO(charliea): Remove this once we've completed the transition to
         // the ClockSyncManager.
@@ -789,15 +790,14 @@ tr.exportTo('tr.e.importer.linux_perf', function() {
       if (!event)
         return false;
 
+      // We have a clock sync event that contains two timestamps: a timestamp
+      // according to the FTrace 'global' clock, and that same timestamp
+      // according to clock_gettime(CLOCK_MONOTONIC).
       this.model_.clockSyncManager.addClockSyncMarker(
-          tr.model.ClockDomainId.FTRACE, 'monotonic', ts);
-
-      // TODO(charliea): Remove this once we've completed the transition to
-      // the ClockSyncManager.
-      this.addClockSyncRecord(new InstantClockSyncRecord('monotonic', ts, {
-        perfTS: ts,
-        parentTS: event[1] * 1000
-      }));
+          LINUX_FTRACE_GLOBAL, 'linux_clock_monotonic_to_ftrace_global', ts);
+      this.model_.clockSyncManager.addClockSyncMarker(
+          LINUX_CLOCK_MONOTONIC, 'linux_clock_monotonic_to_ftrace_global',
+          event[1] * 1000);
 
       return true;
     },

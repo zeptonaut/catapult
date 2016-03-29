@@ -14,7 +14,10 @@ tr.exportTo('tr.model', function() {
   var ClockDomainId = {
     BATTOR: 'battor',
     CHROME: 'chrome',
-    FTRACE: 'ftrace',
+
+    // System-specific clocks
+    LINUX_CLOCK_MONOTONIC, 'LINUX_CLOCK_MONOTONIC',
+    LINUX_FTRACE_GLOBAL, 'LINUX_FTRACE_GLOBAL'
   };
 
   /**

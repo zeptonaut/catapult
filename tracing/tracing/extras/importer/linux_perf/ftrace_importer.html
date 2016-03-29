@@ -53,7 +53,7 @@ tr.exportTo('tr.e.importer.linux_perf', function() {
    * Imports linux perf events into a specified model.
    * @constructor
    */
-  function LinuxPerfImporter(model, events) {
+  function FTraceImporter(model, events) {
     this.importPriority = 2;
     this.model_ = model;
     this.events_ = events;
@@ -162,7 +162,7 @@ tr.exportTo('tr.e.importer.linux_perf', function() {
    * kernels can optionally trace the TGID.
    *
    * @return {function} the function for parsing data when the format is
-   * recognized; otherwise null.
+   * recognized; otherwise undefined.
    */
   function autoDetectLineParser(line) {
     if (line[0] == '{')
@@ -173,7 +173,7 @@ tr.exportTo('tr.e.importer.linux_perf', function() {
       return lineParserWithIRQInfo;
     if (lineREWithLegacyFmt.test(line))
       return lineParserWithLegacyFmt;
-    return null;
+    return undefined;
   };
   TestExports.autoDetectLineParser = autoDetectLineParser;
 
@@ -185,14 +185,14 @@ tr.exportTo('tr.e.importer.linux_perf', function() {
    *
    * @return {boolean} True when events is a linux perf array.
    */
-  LinuxPerfImporter.canImport = function(events) {
+  FTraceImporter.canImport = function(events) {
     if (!(typeof(events) === 'string' || events instanceof String))
       return false;
 
-    if (LinuxPerfImporter._extractEventsFromSystraceHTML(events, false).ok)
+    if (FTraceImporter._extractEventsFromSystraceHTML(events, false).ok)
       return true;
 
-    if (LinuxPerfImporter._extractEventsFromSystraceMultiHTML(events, false).ok)
+    if (FTraceImporter._extractEventsFromSystraceMultiHTML(events, false).ok)
       return true;
 
     if (/^# tracer:/.test(events))
@@ -208,7 +208,7 @@ tr.exportTo('tr.e.importer.linux_perf', function() {
     return false;
   };
 
-  LinuxPerfImporter._extractEventsFromSystraceHTML = function(
+  FTraceImporter._extractEventsFromSystraceHTML = function(
       incoming_events, produce_result) {
     var failure = {ok: false};
     if (produce_result === undefined)
@@ -273,7 +273,7 @@ tr.exportTo('tr.e.importer.linux_perf', function() {
       events_begin_at_line: events_begin_at_line};
   };
 
-  LinuxPerfImporter._extractEventsFromSystraceMultiHTML = function(
+  FTraceImporter._extractEventsFromSystraceMultiHTML = function(
       incoming_events, produce_result) {
     var failure = {ok: false};
     if (produce_result === undefined)
@@ -313,11 +313,11 @@ tr.exportTo('tr.e.importer.linux_perf', function() {
       events_begin_at_line: events_begin_at_line};
   };
 
-  LinuxPerfImporter.prototype = {
+  FTraceImporter.prototype = {
     __proto__: tr.importer.Importer.prototype,
 
     get importerName() {
-      return 'LinuxPerfImporter';
+      return 'FTraceImporter';
     },
 
     get model() {
@@ -429,7 +429,6 @@ tr.exportTo('tr.e.importer.linux_perf', function() {
       this.importCpuData(timeShift);
       this.buildMapFromLinuxPidsToThreads();
       this.buildPerThreadCpuSlicesFromCpuState();
-      this.computeCpuTimestampsForSlicesAsNeeded();
     },
 
     /**
@@ -649,11 +648,6 @@ tr.exportTo('tr.e.importer.linux_perf', function() {
       }, this);
     },
 
-    computeCpuTimestampsForSlicesAsNeeded: function() {
-      /* iterate all slices and try to figure out cpuStart/endTimes */
-
-    },
-
     /**
      * Computes a time transform from perf time to parent time based on the
      * imported clock sync records.
@@ -701,10 +695,10 @@ tr.exportTo('tr.e.importer.linux_perf', function() {
 
     registerDefaultHandlers_: function() {
       this.registerEventHandler('tracing_mark_write',
-          LinuxPerfImporter.prototype.traceMarkingWriteEvent.bind(this));
+          FTraceImporter.prototype.traceMarkingWriteEvent.bind(this));
       // NB: old-style trace markers; deprecated
       this.registerEventHandler('0',
-          LinuxPerfImporter.prototype.traceMarkingWriteEvent.bind(this));
+          FTraceImporter.prototype.traceMarkingWriteEvent.bind(this));
       // Register dummy clock sync handlers to avoid warnings in the log.
       this.registerEventHandler('tracing_mark_write:trace_event_clock_sync',
           function() { return true; });
@@ -876,22 +870,23 @@ tr.exportTo('tr.e.importer.linux_perf', function() {
      */
     parseLines: function() {
       var lines = [];
-      var extractResult = LinuxPerfImporter._extractEventsFromSystraceHTML(
+      var extractResult = FTraceImporter._extractEventsFromSystraceHTML(
           this.events_, true);
       if (!extractResult.ok)
-        extractResult = LinuxPerfImporter._extractEventsFromSystraceMultiHTML(
+        extractResult = FTraceImporter._extractEventsFromSystraceMultiHTML(
             this.events_, true);
       var lines = extractResult.ok ?
         extractResult.lines : this.events_.split('\n');
 
-      var lineParser = null;
+      var lineParser = undefined;
       for (var lineNumber = 0; lineNumber < lines.length; ++lineNumber) {
         var line = lines[lineNumber].trim();
         if (line.length == 0 || /^#/.test(line))
           continue;
-        if (lineParser == null) {
+
+        if (!lineParser) {
           lineParser = autoDetectLineParser(line);
-          if (lineParser == null) {
+          if (!lineParser) {
             this.model_.importWarning({
               type: 'parse_error',
               message: 'Cannot parse line: ' + line
@@ -899,6 +894,7 @@ tr.exportTo('tr.e.importer.linux_perf', function() {
             continue;
           }
         }
+
         var eventBase = lineParser(line);
         if (!eventBase) {
           this.model_.importWarning({
@@ -929,11 +925,11 @@ tr.exportTo('tr.e.importer.linux_perf', function() {
     }
   };
 
-  tr.importer.Importer.register(LinuxPerfImporter);
+  tr.importer.Importer.register(FTraceImporter);
 
   return {
-    LinuxPerfImporter: LinuxPerfImporter,
-    _LinuxPerfImporterTestExports: TestExports
+    FTraceImporter: FTraceImporter,
+    _FTraceImporterTestExports: TestExports
   };
 });
 </script>

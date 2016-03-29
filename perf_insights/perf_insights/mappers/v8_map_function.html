@@ -11,7 +11,6 @@ found in the LICENSE file.
 <link rel="import" href="/tracing/model/helpers/chrome_model_helper.html">
 <link rel="import" href="/tracing/model/ir_coverage.html">
 <link rel="import" href="/tracing/model/user_model/user_expectation.html">
-<link rel="import" href="/tracing/value/histogram.html">
 <link rel="import" href="/tracing/value/unit.html">
 
 <script>
@@ -170,7 +169,7 @@ tr.exportTo('pi.m', function() {
             scriptURL: data.js,
             scriptURLClean: scriptURLClean,
             framework: data.framework,
-            traceURL: model.canonicalUrlThatCreatedThisTrace
+            traceURL: model.canonicalUrl
           };
 
           var JSSourceState = tr.model.source_info.JSSourceState;
@@ -208,7 +207,7 @@ tr.exportTo('pi.m', function() {
         scriptURL: data.js,
         scriptURLClean: scriptURLClean,
         framework: data.framework,
-        traceURL: model.canonicalUrlThatCreatedThisTrace
+        traceURL: model.canonicalUrl
       };
 
       var key = sliceData.threadGroup + '/' +

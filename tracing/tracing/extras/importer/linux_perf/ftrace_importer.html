@@ -343,10 +343,9 @@ tr.exportTo('tr.e.importer.linux_perf', function() {
           this.traceClockSyncEvent(eventName, cpuNumber, pid, ts, eventBase);
         } else if (realTimeClockSyncRE.exec(eventBase.details)) {
           // TODO(charliea): Migrate this sync to ClockSyncManager.
-
-          // This entry maps realtime to clock_monotonic; store in the model
-          // so that importers parsing files with realtime timestamps can
-          // map this back to monotonic.
+          // This entry syncs CLOCK_REALTIME with CLOCK_MONOTONIC. Store the
+          // offset between the two in the model so that importers parsing files
+          // with CLOCK_REALTIME timestamps can map back to CLOCK_MONOTONIC.
           var match = realTimeClockSyncRE.exec(eventBase.details);
           this.model_.realtime_to_monotonic_offset_ms = ts - match[1];
         }
@@ -784,13 +783,19 @@ tr.exportTo('tr.e.importer.linux_perf', function() {
           args[parts[0]] = parts[1];
         }
 
+        // TODO(charliea): Learn more about what types of clock sync markers are
+        // being stored in ftrace. We may risk having "transitive clock sync
+        // markers" here, where the main Chrome trace with domain
+        // CLOCK_MONOTONIC is connected to the ftrace with domain FTRACE_GLOBAL.
+        // If each of those clock domains is also connected to *another* clock
+        // domain, we no longer have any single clock domain that's connected to
+        // all others, which our current clock sync algorithm requires.
         this.model_.clockSyncManager.addClockSyncMarker(
             tr.model.ClockDomainId.LINUX_FTRACE_GLOBAL, name, ts);
 
         // TODO(charliea): Remove this once we've completed the transition to
         // the ClockSyncManager.
         this.addClockSyncRecord_(new InstantClockSyncRecord(name, ts, args));
-
         return true;
       }
 

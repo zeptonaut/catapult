@@ -1,6 +1,7 @@
 # Copyright 2012 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
+
 import logging
 import sys
 
@@ -122,6 +123,14 @@ class RunTestsCommand(command_line.OptparseCommand):
       possible_browser = browser_finder.FindBrowser(args)
       platform = possible_browser.platform
 
+    fetch_reference_chrome_binary = False
+    # Fetch all binaries needed by telemetry before we run the benchmark.
+    if possible_browser and possible_browser.browser_type == 'reference':
+      fetch_reference_chrome_binary = True
+    binary_manager.FetchBinaryDepdencies(
+        platform, args.client_config, fetch_reference_chrome_binary)
+
+
     # Telemetry seems to overload the system if we run one test per core,
     # so we scale things back a fair amount. Many of the telemetry tests
     # are long-running, so there's a limit to how much parallelism we
@@ -223,6 +232,12 @@ def _MatchesSelectedTest(name, selected_tests, selected_tests_are_exact):
 
 def _SetUpProcess(child, context): # pylint: disable=unused-argument
   ps_util.EnableListingStrayProcessesUponExitHook()
+  # Make sure that we don't invokes cloud storage I/Os when we run the tests in
+  # parallel.
+  # TODO(nednguyen): Enabled this once telemetry tests in Chromium is updated
+  # to prefetch files.
+  # (https://github.com/catapult-project/catapult/issues/2192)
+  # os.environ[cloud_storage.DISABLE_CLOUD_STORAGE_IO] = '1'
   if binary_manager.NeedsInit():
     # Typ doesn't keep the DependencyManager initialization in the child
     # processes.

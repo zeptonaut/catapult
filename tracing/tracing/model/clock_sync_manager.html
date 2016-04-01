@@ -127,11 +127,15 @@ tr.exportTo('tr.model', function() {
      * domain. If no clock domains are viable candidates, an error is thrown.
      */
     buildModelTimeTransformerMap_() {
-
+      var traceEventImporterDomain = getTraceEventImporterDomain_();
+      if (traceEventImporterDomain) {
+        replaceDomainInMarkers(
+            traceEventImporterDomain, ClockDomainId.TRACE_EVENT_IMPORTER);
+      }
 
       if (this.modelDomainId_ === undefined) {
         throw new Error('Unable to select a master clock domain because no ' +
-              'clock domain is directly connected to all others.');
+            'clock domain is directly connected to all others.');
       }
 
       this.modelTimeTransformerByDomainId_ = {};
@@ -147,6 +151,11 @@ tr.exportTo('tr.model', function() {
           this.modelTimeTransformerByDomainId_[conn.marker1.domainId] =
               conn.getTransformer(conn.marker1.domainId, conn.marker2.domainId);
         }
+      }
+
+      if (uniqueDomainIds.indexOf(ClockDomainId.TRACE_EVENT_IMPORTER) >= 0) {
+        this.modelTimeTransformersByDomainId_[traceEventImporterDomain] =
+            this.modelTimeTransfomersByDomainId_[ClockDomainId.TRACE_EVENT_IMPORTER];
       }
     },
 
@@ -206,10 +215,6 @@ tr.exportTo('tr.model', function() {
       };
 
       var eligibleModelDomainIds = uniqueDomainIds.filter(isFullyConnected);
-
-      // TODO(charliea): Change this bias from being towards
-      // TRACE_EVENT_IMPORTER to instead be towards the domains that TRACE_EVENT_IMPORTER
-      // actually is
 
       // TODO(charliea): Remove the bias towards picking TRACE_EVENT_IMPORTER
       // once we're fully moved over to using the ClockSyncManager. In the

@@ -18,8 +18,11 @@ tr.exportTo('tr.model', function() {
     // mechanism, which had no concept of named time domains.
     TRACE_EVENT_IMPORTER: 'trace_event_importer'
 
-    // TODO(charliea): Add clock domains for the various Chrome TimeTicks
-    // sources.
+    LINUX_MONOTONIC_CLOCK: 'linux_monotonic_clock',
+    MAC_MACH_ABSOLUTE_TIME: 'mac_mach_absolute_time'
+    WIN_ROLLOVER_PROTECTED_TIME_GET_TIME:
+        'mac_rollover_protected_time_get_time',
+    WIN_QPC: 'win_qpc',
   };
 
   /**
@@ -124,29 +127,7 @@ tr.exportTo('tr.model', function() {
      * domain. If no clock domains are viable candidates, an error is thrown.
      */
     buildModelTimeTransformerMap_() {
-      var completeConnectorsByDomainId =
-          this.getCompleteConnectorsByDomainId_();
-      var uniqueDomainIds = tr.b.dictionaryKeys(completeConnectorsByDomainId);
 
-      // If there are |n| unique clock domains, then the model clock domain
-      // is the first one alphabetically that's connected to the |n-1| other
-      // clock domains.
-      uniqueDomainIds.sort();
-      var isFullyConnected = function(domainId) {
-        return completeConnectorsByDomainId[domainId].length ===
-            uniqueDomainIds.length - 1;
-      };
-
-      var eligibleModelDomainIds = uniqueDomainIds.filter(isFullyConnected);
-      // TODO(charliea): Remove the bias towards picking TRACE_EVENT_IMPORTER
-      // once we're fully moved over to using the ClockSyncManager. In the
-      // interim, there are other importers that assume TRACE_EVENT_IMPORTER
-      // will be the master, so we have to leave this bias in place.
-      var traceEventImporterDomainExists =
-          eligibleModelDomainIds.indexOf(ClockDomainId.TRACE_EVENT_IMPORTER) >=
-              0;
-      this.modelDomainId_ = traceEventImporterDomainExists ?
-          ClockDomainId.TRACE_EVENT_IMPORTER : eligibleModelDomainIds[0];
 
       if (this.modelDomainId_ === undefined) {
         throw new Error('Unable to select a master clock domain because no ' +
@@ -208,6 +189,96 @@ tr.exportTo('tr.model', function() {
       }
 
       return undefined;
+    },
+
+    getModelClockDomain_() {
+      var completeConnectorsByDomainId =
+          this.getCompleteConnectorsByDomainId_();
+      var uniqueDomainIds = tr.b.dictionaryKeys(completeConnectorsByDomainId);
+
+      // If there are |n| unique clock domains, then the model clock domain
+      // is the first one alphabetically that's connected to the |n-1| other
+      // clock domains.
+      uniqueDomainIds.sort();
+      var isFullyConnected = function(domainId) {
+        return completeConnectorsByDomainId[domainId].length ===
+            uniqueDomainIds.length - 1;
+      };
+
+      var eligibleModelDomainIds = uniqueDomainIds.filter(isFullyConnected);
+
+      // TODO(charliea): Change this bias from being towards
+      // TRACE_EVENT_IMPORTER to instead be towards the domains that TRACE_EVENT_IMPORTER
+      // actually is
+
+      // TODO(charliea): Remove the bias towards picking TRACE_EVENT_IMPORTER
+      // once we're fully moved over to using the ClockSyncManager. In the
+      // interim, there are other importers that assume TRACE_EVENT_IMPORTER
+      // will be the master, so we have to leave this bias in place.
+      var traceEventImporterDomainExists =
+          eligibleModelDomainIds.indexOf(ClockDomainId.TRACE_EVENT_IMPORTER) >=
+              0;
+      this.modelDomainId_ = traceEventImporterDomainExists ?
+          ClockDomainId.TRACE_EVENT_IMPORTER : eligibleModelDomainIds[0];
+
+      return this.modelDomainId_;
+    },
+
+    /**
+     * Returns the clock domain that TRACE_EVENT_IMPORTER is a duplicate of,
+     * or undefined if no duplicate is found.
+     *
+     * This deduping is necessary because legacy Chrome traces don't explicitly
+     * specify what clock domain their trace timestamps belong to. For example,
+     * a trace might contain a clock sync in the Chrome trace between
+     * TRACE_EVENT_IMPORTER and BATTOR. A supplementary ftrace could also
+     * contain a clock sync between LINUX_FTRACE_GLOBAL and
+     * LINUX_CLOCK_MONOTONIC. We need this deduping to ensure that
+     * TRACE_EVENT_IMPORTER and LINUX_CLOCK_MONOTONIC get collapsed into a
+     * single clock domain.
+     *
+     * (Similar problems exist with ETW traces, which prevents us from just
+     * assuming all legacy Chrome traces are in the LINUX_CLOCK_MONOTONIC
+     * domain.)
+     */
+    getTraceEventImporterDomain_() {
+      // If there's no generic TRACE_EVENT_IMPORTER sync markers, then we have
+      // nothing to do.
+      if (uniqueDomainIds.indexOf(ClockDomainId.TRACE_EVENT_IMPORTER) === -1)
+        return undefined;
+
+      // If we already have a valid model domain, we have nothing to do.
+      if (getModelClockDomain_())
+        return undefined;
+
+      // If we see a marker with a possible TRACE_EVENT_IMPORTER domain, assume
+      // that they're the same.
+      if (uniqueDomainIds.indexOf(ClockDomainId.LINUX_CLOCK_MONOTONIC) >= 0)
+        return ClockDomainId.LINUX_CLOCK_MONOTONIC;
+
+      if (uniqueDomainIds.indexOf(ClockDomainId.MAC_MACH_ABSOLUTE_TIME) >= 0)
+        return ClockDomainId.MAC_MACH_ABSOLUTE_TIME;
+
+      if (uniqueDomainIds.indexOf(
+          ClockDomainId.WIN_ROLLOVER_PROTECTED_TIME_GET_TIME) >= 0) {
+        return ClockDomainId.WIN_ROLLOVER_PROTECTED_TIME_GET_TIME
+      }
+
+      if (uniqueDomainIds.indexOf(ClockDomainId.WIN_QPC) >= 0)
+        return ClockDomainId.WIN_QPC;
+
+      return undefined;
+    },
+
+    substituteDomainInMarkers_(original, replacement) {
+
+    },
+
+    /**
+     * TODO(charliea):
+     */
+    collapseChromeTimeDomains_() {
+
     }
   };
 

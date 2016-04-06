@@ -332,15 +332,15 @@ tr.exportTo('tr.e.importer.linux_perf', function() {
     importClockSyncMarkers: function() {
       this.lazyInit_();
 
-      this.forEachLine(function(text, eventBase, cpuNumber, pid, ts) {
+      this.forEachLine_(function(text, eventBase, cpuNumber, pid, ts) {
         var eventName = eventBase.eventName;
         if (eventName !== 'tracing_mark_write' && eventName !== '0')
           return;
 
         if (traceEventClockSyncRE.exec(eventBase.details)) {
-          this.traceClockSyncEvent(eventName, cpuNumber, pid, ts, eventBase);
+          this.traceClockSyncEvent_(eventName, cpuNumber, pid, ts, eventBase);
         } else if (genericClockSyncRE.exec(eventBase.details)) {
-          this.traceClockSyncEvent(eventName, cpuNumber, pid, ts, eventBase);
+          this.traceClockSyncEvent_(eventName, cpuNumber, pid, ts, eventBase);
         } else if (realTimeClockSyncRE.exec(eventBase.details)) {
           // TODO(charliea): Migrate this sync to ClockSyncManager.
           // This entry syncs CLOCK_REALTIME with CLOCK_MONOTONIC. Store the
@@ -784,7 +784,7 @@ tr.exportTo('tr.e.importer.linux_perf', function() {
         }
 
        this.model_.clockSyncManager.addClockSyncMarker(
-            tr.model.ClockDomainId.LINUX_FTRACE_GLOBAL, name, ts);
+           tr.model.ClockDomainId.LINUX_FTRACE_GLOBAL, name, ts);
 
         // TODO(charliea): Remove this once we've completed the transition to
         // the ClockSyncManager.
@@ -797,14 +797,21 @@ tr.exportTo('tr.e.importer.linux_perf', function() {
       if (!event)
         return false;
 
+      // DO NOT SUBMIT until this is removed.
+      this.addClockSyncRecord_(new InstantClockSyncRecord('monotonic', ts, {
+        perfTS: ts,
+        parentTS: event[1] * 1000
+      }));
+
       // We have a clock sync event that contains two timestamps: a timestamp
       // according to the ftrace 'global' clock, and that same timestamp
       // according to clock_gettime(CLOCK_MONOTONIC).
       this.model_.clockSyncManager.addClockSyncMarker(
-          LINUX_FTRACE_GLOBAL, 'linux_clock_monotonic_to_ftrace_global', ts);
+          tr.model.ClockDomainId.LINUX_FTRACE_GLOBAL,
+          'linux_clock_monotonic_to_ftrace_global', ts);
       this.model_.clockSyncManager.addClockSyncMarker(
-          LINUX_CLOCK_MONOTONIC, 'linux_clock_monotonic_to_ftrace_global',
-          event[1] * 1000);
+          tr.model.ClockDomainId.LINUX_CLOCK_MONOTONIC,
+          'linux_clock_monotonic_to_ftrace_global', event[1] * 1000);
 
       return true;
     },
@@ -948,7 +955,7 @@ tr.exportTo('tr.e.importer.linux_perf', function() {
     lazyInit_: function() {
       this.parsers_ = this.createParsers_();
       this.registerDefaultHandlers_();
-      this.parseLines();
+      this.parseLines_();
     }
   };
 

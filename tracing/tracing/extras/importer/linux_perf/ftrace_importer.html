@@ -698,9 +698,8 @@ tr.exportTo('tr.e.importer.linux_perf', function() {
 
       // TODO(skyostil): Compute a scaling factor if we have multiple clock sync
       // records.
-      var sync = monotonicSyncs[0];
-      var ftraceGlobalTs = sync.start;
-      var monotonicTs = sync.args.monotonicTs;
+      var ftraceGlobalTs = monotonicSyncs[0].start;
+      var monotonicTs = monotonicSyncs[0].args.monotonicTs;
 
       // A monotonic timestamp of zero is used as a sentinel value to indicate
       // that CLOCK_MONOTONIC and the ftrace global clock are identical.

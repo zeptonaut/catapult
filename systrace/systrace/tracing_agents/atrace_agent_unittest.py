@@ -5,22 +5,23 @@
 # found in the LICENSE file.
 
 import contextlib
+import logging
 import os
 import unittest
 
-from systrace import systrace
-from systrace.agents import atrace_agent
+from systrace import run_systrace
+from systrace.tracing_agents import atrace_agent
 
 DEVICE_SERIAL = 'AG8404EC0444AGC'
 ATRACE_ARGS = ['atrace', '-z', '-t', '10', '-b', '4096']
 CATEGORIES = ['sched', 'gfx', 'view', 'wm']
 ADB_SHELL = ['adb', '-s', DEVICE_SERIAL, 'shell']
 
-SYSTRACE_CMD = ['./systrace.py', '--time', '10', '-o', 'out.html', '-e',
+SYSTRACE_CMD = ['./run_systrace.py', '--time', '10', '-o', 'out.html', '-e',
                 DEVICE_SERIAL] + CATEGORIES
 TRACE_CMD = (ADB_SHELL + ATRACE_ARGS + CATEGORIES)
 
-SYSTRACE_LIST_CATEGORIES_CMD = ['./systrace.py', '-e', DEVICE_SERIAL, '-l']
+SYSTRACE_LIST_CATEGORIES_CMD = ['./run_systrace.py', '-e', DEVICE_SERIAL, '-l']
 TRACE_LIST_CATEGORIES_CMD = (ADB_SHELL + ['atrace', '--list_categories'])
 
 LEGACY_ATRACE_ARGS = ['atrace', '-z', '-t', '10', '-b', '4096', '-s']
@@ -29,7 +30,7 @@ LEGACY_TRACE_CMD = (ADB_SHELL + LEGACY_ATRACE_ARGS)
 STOP_FIX_UPS = ['atrace', '--no-fix-threads', '--no-fix-tgids']
 
 
-SYSTRACE_BOOT_CMD = (['./systrace.py', '--boot', '-e', DEVICE_SERIAL] +
+SYSTRACE_BOOT_CMD = (['./run_systrace.py', '--boot', '-e', DEVICE_SERIAL] +
                      CATEGORIES)
 TRACE_BOOT_CMD = (ADB_SHELL +
                   ['atrace', '--async_stop', '&&', 'setprop',
@@ -56,11 +57,43 @@ ATRACE_FIXED_TGIDS = os.path.join(TEST_DIR, 'atrace_fixed_tgids')
 class AtraceAgentTest(unittest.TestCase):
 
   def test_construct_trace_command(self):
-    options, categories = systrace.parse_options(SYSTRACE_CMD)
-    agent = atrace_agent.AtraceAgent(options, categories)
+    options, categories = run_systrace.parse_options(SYSTRACE_CMD)
+    agent = atrace_agent.AtraceAgent()
+    agent._options = options
+    agent._categories = categories
     tracer_args = agent._construct_trace_command()
     self.assertEqual(' '.join(TRACE_CMD), ' '.join(tracer_args))
-    self.assertEqual(True, agent.expect_trace())
+
+  def test_preprocess_trace_data(self):
+    with contextlib.nested(open(ATRACE_DATA_STRIPPED, 'r'),
+                           open(ATRACE_DATA_RAW, 'r')) as (f1, f2):
+      atrace_data = f1.read()
+      atrace_data_raw = f2.read()
+      options, categories = run_systrace.parse_options(STOP_FIX_UPS)
+      agent = atrace_agent.AtraceAgent()
+      agent._options = options
+      agent._categories = categories
+      trace_data = agent._preprocess_trace_data(atrace_data_raw)
+      self.assertEqual(atrace_data, trace_data)
+
+  def test_list_categories(self):
+    options, categories = run_systrace.parse_options(
+        SYSTRACE_LIST_CATEGORIES_CMD)
+    agent = atrace_agent.AtraceAgent()
+    agent._options = options
+    agent._categories = categories
+    tracer_args = agent._construct_trace_command()
+    self.assertEqual(' '.join(TRACE_LIST_CATEGORIES_CMD), ' '.join(tracer_args))
+
+  def test_construct_trace_from_file_command(self):
+    options, categories = run_systrace.parse_options(['run_systrace.py',
+        '--from-file', ATRACE_DATA_RAW_FROM_FILE])
+    agent = atrace_agent.try_create_agent(options)
+    agent._options = options
+    agent._categories = categories
+    tracer_args = agent._construct_trace_command()
+    self.assertEqual(' '.join(['cat', ATRACE_DATA_RAW_FROM_FILE]),
+            ' '.join(tracer_args))
 
   def test_extract_thread_list(self):
     with contextlib.nested(open(ATRACE_EXTRACTED_THREADS, 'r'),
@@ -95,34 +128,6 @@ class AtraceAgentTest(unittest.TestCase):
           atrace_data_stripped, thread_names)
       self.assertEqual(atrace_data_thread_fixed, trace_data)
 
-  def test_preprocess_trace_data(self):
-    with contextlib.nested(open(ATRACE_DATA_STRIPPED, 'r'),
-                           open(ATRACE_DATA_RAW, 'r')) as (f1, f2):
-      atrace_data = f1.read()
-      atrace_data_raw = f2.read()
-
-      options, categories = systrace.parse_options(STOP_FIX_UPS)
-      agent = atrace_agent.AtraceAgent(options, categories)
-      trace_data = agent._preprocess_trace_data(atrace_data_raw)
-
-      self.assertEqual(atrace_data, trace_data)
-
-  def test_list_categories(self):
-    options, categories = systrace.parse_options(SYSTRACE_LIST_CATEGORIES_CMD)
-    agent = atrace_agent.AtraceAgent(options, categories)
-    tracer_args = agent._construct_trace_command()
-    self.assertEqual(' '.join(TRACE_LIST_CATEGORIES_CMD), ' '.join(tracer_args))
-    self.assertEqual(False, agent.expect_trace())
-
-  def test_construct_trace_from_file_command(self):
-    options, categories = systrace.parse_options(['systrace.py',
-        '--from-file', ATRACE_DATA_RAW_FROM_FILE])
-    agent = atrace_agent.try_create_agent(options, categories)
-    tracer_args = agent._construct_trace_command()
-    self.assertEqual(' '.join(['cat', ATRACE_DATA_RAW_FROM_FILE]),
-            ' '.join(tracer_args))
-    self.assertEqual(True, agent.expect_trace())
-
   def test_extract_tgids(self):
     with contextlib.nested(open(ATRACE_PROCFS_DUMP, 'r'),
                            open(ATRACE_EXTRACTED_TGIDS, 'r')) as (f1, f2):
@@ -149,20 +154,24 @@ class AtraceAgentTest(unittest.TestCase):
 
 
 class AtraceLegacyAgentTest(unittest.TestCase):
-
   def test_construct_trace_command(self):
-    options, categories = systrace.parse_options(SYSTRACE_CMD)
-    agent = atrace_agent.AtraceLegacyAgent(options, categories)
+    options, categories = run_systrace.parse_options(SYSTRACE_CMD)
+    agent = atrace_agent.AtraceLegacyAgent()
+    agent._options = options
+    agent._categories = categories
     tracer_args = agent._construct_trace_command()
     self.assertEqual(' '.join(LEGACY_TRACE_CMD), ' '.join(tracer_args))
-    self.assertEqual(True, agent.expect_trace())
 
 
 class BootAgentTest(unittest.TestCase):
-
   def test_boot(self):
-    options, categories = systrace.parse_options(SYSTRACE_BOOT_CMD)
-    agent = atrace_agent.BootAgent(options, categories)
+    options, categories = run_systrace.parse_options(SYSTRACE_BOOT_CMD)
+    agent = atrace_agent.BootAgent()
+    agent._options = options
+    agent._categories = categories
     tracer_args = agent._construct_trace_command()
     self.assertEqual(' '.join(TRACE_BOOT_CMD), ' '.join(tracer_args))
-    self.assertEqual(True, agent.expect_trace())
+
+if __name__ == "__main__":
+  logging.getLogger().setLevel(logging.DEBUG)
+  unittest.main(verbosity=2)

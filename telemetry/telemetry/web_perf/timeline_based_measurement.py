@@ -11,7 +11,7 @@ from telemetry.timeline import model as model_module
 from telemetry.timeline import tracing_category_filter
 from telemetry.timeline import tracing_config
 from telemetry.value import trace
-from telemetry.value import translate_common_values
+from telemetry.value import common_value_helpers
 from telemetry.web_perf.metrics import timeline_based_metric
 from telemetry.web_perf.metrics import blob_timeline
 from telemetry.web_perf.metrics import jitter_timeline
@@ -20,7 +20,6 @@ from telemetry.web_perf.metrics import gpu_timeline
 from telemetry.web_perf.metrics import indexeddb_timeline
 from telemetry.web_perf.metrics import layout
 from telemetry.web_perf.metrics import memory_timeline
-from telemetry.web_perf.metrics import responsiveness_metric
 from telemetry.web_perf.metrics import smoothness
 from telemetry.web_perf.metrics import text_selection
 from telemetry.web_perf import smooth_gesture_util
@@ -47,7 +46,6 @@ def _GetAllLegacyTimelineBasedMetrics():
   # all TimelineBasedMetrics class in web_perf/metrics/ folder.
   # This cannot be done until crbug.com/460208 is fixed.
   return (smoothness.SmoothnessMetric(),
-          responsiveness_metric.ResponsivenessMetric(),
           layout.LayoutMetric(),
           gpu_timeline.GPUTimelineMetric(),
           blob_timeline.BlobTimelineMetric(),
@@ -175,7 +173,7 @@ class Options(object):
     """
     self._config = tracing_config.TracingConfig()
     self._config.enable_chrome_trace = True
-    self._config.enable_platform_display_trace = True
+    self._config.enable_platform_display_trace = False
 
     if isinstance(overhead_level,
                   tracing_category_filter.TracingCategoryFilter):
@@ -307,12 +305,13 @@ class TimelineBasedMeasurement(story_test.StoryTest):
     failure_dicts = mre_result.failures
     for d in failure_dicts:
       results.AddValue(
-          translate_common_values.TranslateMreFailure(d, page))
+          common_value_helpers.TranslateMreFailure(d, page))
 
     value_dicts = mre_result.pairs.get('values', [])
     for d in value_dicts:
-      results.AddValue(
-          translate_common_values.TranslateScalarValue(d, page))
+      if common_value_helpers.IsScalarNumericValue(d):
+        results.AddValue(
+            common_value_helpers.TranslateScalarValue(d, page))
 
   def _ComputeLegacyTimelineBasedMetrics(self, results, trace_result):
     model = model_module.TimelineModel(trace_result)

@@ -34,7 +34,7 @@ tr.b.unittest.testSuite(function() {
     }
   };
 
-  test('addClockSyncMarker_throwsWithUnknownClockDomain', function() {
+  test('addClockSyncMarker_throwsWithUnknownDomain', function() {
     var mgr = new ClockSyncManager();
 
     assert.throws(function() {
@@ -134,29 +134,38 @@ tr.b.unittest.testSuite(function() {
         mgr.getModelTimeTransformer(ClockDomainId.DOMAIN_1)(150), 150);
   }, testOptions);
 
-  test('getModelTimeTransformer_battorSyncUsesTraceEventImporterStartTs',
+  test('getModelTimeTransformer_battorSyncUsesNormalTimestampWhenFast',
       function() {
     var mgr = new ClockSyncManager();
-    mgr.addClockSyncMarker(
-        ClockDomainId.TRACE_EVENT_IMPORTER, 'sync1', 100, 200);
+    mgr.addClockSyncMarker(ClockDomainId.DOMAIN_1, 'sync1', 100, 102);
     mgr.addClockSyncMarker(ClockDomainId.BATTOR, 'sync1', 350);
 
     assert.strictEqual(
-        mgr.getModelTimeTransformer(ClockDomainId.BATTOR)(350),
-        100);
+        mgr.getModelTimeTransformer(ClockDomainId.DOMAIN_1)(101),
+        350);
   }, testOptions);
 
-  test('getModelTimeTransformer_prefersTraceEventImporterClockDomain',
+  test('getModelTimeTransformer_battorSyncUsesChromeLegacyStartTsWhenTooSlow',
       function() {
     var mgr = new ClockSyncManager();
+    mgr.addClockSyncMarker(ClockDomainId.DOMAIN_1, 'sync1', 100, 200);
+    mgr.addClockSyncMarker(ClockDomainId.BATTOR, 'sync1', 350);
+
+    assert.strictEqual(
+        mgr.getModelTimeTransformer(ClockDomainId.DOMAIN_1)(100),
+        350);
+  }, testOptions);
+
+  test('getModelTimeTransformer_prefersChromeLegacyDomain', function() {
+    var mgr = new ClockSyncManager();
     mgr.addClockSyncMarker(ClockDomainId.DOMAIN_1, 'sync1', 100);
-    mgr.addClockSyncMarker(ClockDomainId.TRACE_EVENT_IMPORTER, 'sync1', 350);
+    mgr.addClockSyncMarker(ClockDomainId.UNKNOWN_CHROME_LEGACY, 'sync1', 350);
 
     assert.strictEqual(
         mgr.getModelTimeTransformer(ClockDomainId.DOMAIN_1)(100),
         350);
     assert.strictEqual(
-        mgr.getModelTimeTransformer(ClockDomainId.TRACE_EVENT_IMPORTER)(350),
+        mgr.getModelTimeTransformer(ClockDomainId.UNKNOWN_CHROME_LEGACY)(350),
         350);
   }, testOptions);
 

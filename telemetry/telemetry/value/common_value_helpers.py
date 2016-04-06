@@ -11,9 +11,12 @@ def TranslateMreFailure(mre_failure, page):
 
 
 def TranslateScalarValue(scalar_value, page):
-  assert (scalar_value['type'] == 'numeric' and
-          scalar_value['numeric']['type'] == 'scalar')
-  scalar_value['value'] = scalar_value['numeric']['value']
+  assert IsScalarNumericValue(scalar_value)
+
+  value = scalar_value['numeric']['value']
+  scalar_value['value'] = value
+  if value is None:
+    scalar_value['none_value_reason'] = 'Common scalar contained None'
 
   name = scalar_value['grouping_keys']['name']
 
@@ -22,6 +25,8 @@ def TranslateScalarValue(scalar_value, page):
     raise ValueError('Must specify improvement direction for value ' + name)
 
   scalar_value['units'] = unit_parts[0]
+  scalar_value['description'] = scalar_value.get('options', {}).get(
+      'description')
 
   if unit_parts[1] == 'biggerIsBetter':
     scalar_value['improvement_direction'] = improvement_direction.UP
@@ -33,3 +38,8 @@ def TranslateScalarValue(scalar_value, page):
   scalar_value['name'] = name
   del scalar_value['grouping_keys']['name']
   return scalar.ScalarValue.FromDict(scalar_value, {page.id: page})
+
+
+def IsScalarNumericValue(value_dict):
+  return (value_dict.get('type') == 'numeric' and
+          value_dict['numeric'].get('type') == 'scalar')

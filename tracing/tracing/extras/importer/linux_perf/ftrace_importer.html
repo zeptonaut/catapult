@@ -751,7 +751,7 @@ tr.exportTo('tr.e.importer.linux_perf', function() {
         var name = event[1];
         var pieces = event[2].split(' ');
         var args = {
-          perfTs: event.perfTs
+          perfTs: ts
         };
         for (var i = 0; i < pieces.length; i++) {
           var parts = pieces[i].split('=');
@@ -767,8 +767,6 @@ tr.exportTo('tr.e.importer.linux_perf', function() {
       event = /parent_ts=(\d+\.?\d*)/.exec(eventBase.details);
       if (!event)
         return false;
-
-      var parentTs =
 
       this.addClockSyncRecord_(new InstantClockSyncRecord('monotonic', ts, {
         perfTs: ts,

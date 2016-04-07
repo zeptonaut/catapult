@@ -115,8 +115,18 @@ tr.exportTo('tr.model', function() {
      * the first alphabetically is selected.
      */
     getModelTimeTransformer: function(domainId) {
-      if (this.modelTimeTransformerByDomainId_ === undefined)
-        this.buildModelTimeTransformerMap_();
+      if (this.modelTimeTransformerByDomainId_ === undefined) {
+        if (Object.keys(this.markersBySyncId_).length === 0) {
+          // If we have no sync markers, make the domain requesting the
+          // transform the model.
+          this.modelDomainId_ = domainId;
+          this.modelTimeTransformerByDomainId_ = {};
+          this.modelTimeTransformerByDomainId_[domainId] = tr.b.identity;
+        } else {
+          // If we do have sync markers, choose a model more carefully.
+          this.buildModelTimeTransformerMap_();
+        }
+      }
 
       var transformer = this.modelTimeTransformerByDomainId_[domainId];
       if (transformer === undefined) {

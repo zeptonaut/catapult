@@ -25,6 +25,16 @@ tr.exportTo('tr.model', function() {
     WIN_QPC: 'WIN_QPC'
   };
 
+  /**
+   * Returns true if the specified domain is one that Chrome tracing can use.
+   */
+  function isChromeDomain(domainId) {
+    return domainId === ClockDomainId.LINUX_CLOCK_MONOTONIC ||
+        domainId === ClockDomainId.MAC_MACH_ABSOLUTE_TIME ||
+        domainId === ClockDomainId.WIN_ROLLOVER_PROTECTED_TIME_GET_TIME ||
+        domainId === ClockDomainId.WIN_QPC;
+  }
+
   // The number of milliseconds above which the BattOr sync is no longer
   // considered "fast", and it's more accurate to use the sync start timestamp
   // instead of the normal sync timestamp due to a bug in the Chrome serial code
@@ -240,21 +250,12 @@ tr.exportTo('tr.model', function() {
       if (uniqueDomainIds.indexOf(ClockDomainId.UNKNOWN_CHROME_LEGACY) < 0)
         return undefined;
 
-      // Otherwise, return the first domain that we see that could be the real
-      // domain for UNKNOWN_CHROME_LEGACY.
-      if (uniqueDomainIds.indexOf(ClockDomainId.LINUX_CLOCK_MONOTONIC) >= 0)
-        return ClockDomainId.LINUX_CLOCK_MONOTONIC;
+      for (var i = 0; i < uniqueDomainIds.length; i++) {
+        var domainId = uniqueDomainIds[i];
 
-      if (uniqueDomainIds.indexOf(ClockDomainId.MAC_MACH_ABSOLUTE_TIME) >= 0)
-        return ClockDomainId.MAC_MACH_ABSOLUTE_TIME;
-
-      if (uniqueDomainIds.indexOf(
-          ClockDomainId.WIN_ROLLOVER_PROTECTED_TIME_GET_TIME) >= 0) {
-        return ClockDomainId.WIN_ROLLOVER_PROTECTED_TIME_GET_TIME;
+        if (isChromeDomain(domainId))
+          return domainId;
       }
-
-      if (uniqueDomainIds.indexOf(ClockDomainId.WIN_QPC) >= 0)
-        return ClockDomainId.WIN_QPC;
 
       // If we didn't see any of these, then UNKNOWN_CHROME_LEGACY isnt' a
       // a duplicate of another clock domain.

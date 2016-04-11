@@ -149,11 +149,44 @@ tr.b.unittest.testSuite(function() {
         mgr.getModelTimeTransformer(ClockDomainId.DOMAIN_1)(100), 100);
   }, testOptions);
 
+  test('getModelTimeTransformer_oneCompleteSyncWithChromeLegacyBefore',
+      function() {
+    var mgr = new ClockSyncManager();
+    mgr.addClockSyncMarker(ClockDomainId.DOMAIN_1, 'sync1', 100);
+    mgr.addClockSyncMarker(ClockDomainId.UNKNOWN_CHROME_LEGACY, 'sync1', 350);
+
+    assert.strictEqual(
+        mgr.getModelTimeTransformer(ClockDomainId.UNKNOWN_CHROME_LEGACY)(350),
+        350);
+    assert.strictEqual(
+        mgr.getModelTimeTransformer(ClockDomainId.DOMAIN_1)(100), 350);
+    assert.strictEqual(
+        mgr.getModelTimeTransformer(ClockDomainId.LINUX_CLOCK_MONOTONIC)(350),
+        100);
+  }, testOptions);
+
+  test('getModelTimeTransformer_oneCompleteSyncWithChromeLegacyAfter',
+      function() {
+    var mgr = new ClockSyncManager();
+    mgr.addClockSyncMarker(ClockDomainId.DOMAIN_1, 'sync1', 100);
+    mgr.addClockSyncMarker(ClockDomainId.LINUX_CLOCK_MONOTONIC, 'sync1', 350);
+
+    assert.strictEqual(
+        mgr.getModelTimeTransformer(ClockDomainId.UNKNOWN_CHROME_LEGACY)(350),
+        100);
+    assert.strictEqual(
+        mgr.getModelTimeTransformer(ClockDomainId.DOMAIN_1)(100), 100);
+    assert.strictEqual(
+        mgr.getModelTimeTransformer(ClockDomainId.LINUX_CLOCK_MONOTONIC)(350),
+        100);
+  }, testOptions);
+
   test('getModelTimeTransformer_twoCompleteSyncs', function() {
     var mgr = new ClockSyncManager();
     mgr.addClockSyncMarker(ClockDomainId.DOMAIN_1, 'sync1', 100);
     mgr.addClockSyncMarker(ClockDomainId.DOMAIN_2, 'sync1', 350);
 
+    var tx = mgr.getTransformerBetween_("domain1", "domain3");
     mgr.addClockSyncMarker(ClockDomainId.DOMAIN_1, 'sync2', 200);
     mgr.addClockSyncMarker(ClockDomainId.DOMAIN_3, 'sync2', 250);
 
@@ -174,6 +207,21 @@ tr.b.unittest.testSuite(function() {
         mgr.getModelTimeTransformer(ClockDomainId.DOMAIN_2)(350), 150);
     assert.strictEqual(
         mgr.getModelTimeTransformer(ClockDomainId.DOMAIN_1)(150), 150);
+  }, testOptions);
+
+  test('getModelTimeTransformer_indirectlyConnectedGraph',
+      function() {
+    var mgr = new ClockSyncManager();
+    mgr.addClockSyncMarker(ClockDomainId.DOMAIN_1, 'sync1', 100);
+    mgr.addClockSyncMarker(ClockDomainId.DOMAIN_2, 'sync1', 200);
+
+    mgr.addClockSyncMarker(ClockDomainId.DOMAIN_2, 'sync2', 200);
+    mgr.addClockSyncMarker(ClockDomainId.DOMAIN_3, 'sync2', 300);
+
+    assert.strictEqual(
+        mgr.getModelTimeTransformer(ClockDomainId.DOMAIN_1)(100), 100);
+    assert.strictEqual(
+        mgr.getModelTimeTransformer(ClockDomainId.DOMAIN_3)(300), 1000);
   }, testOptions);
 
   test('getModelTimeTransformer_battorSyncUsesNormalTimestampWhenFast',
@@ -323,31 +371,8 @@ tr.b.unittest.testSuite(function() {
         'directly connected to all others.');
   }, testOptions);
 
-  test('getModelTimeTransformer_throwsWithIndirectlyConnectedGraph',
-      function() {
-    var mgr = new ClockSyncManager();
-    mgr.addClockSyncMarker(ClockDomainId.DOMAIN_1, 'sync1', 100);
-    mgr.addClockSyncMarker(ClockDomainId.DOMAIN_2, 'sync1', 100);
+  // TODO(charliea): Write a test that throws when there are cycles.
 
-    mgr.addClockSyncMarker(ClockDomainId.DOMAIN_2, 'sync2', 100);
-    mgr.addClockSyncMarker(ClockDomainId.DOMAIN_3, 'sync2', 100);
-
-    mgr.addClockSyncMarker(ClockDomainId.DOMAIN_3, 'sync3', 100);
-    mgr.addClockSyncMarker(ClockDomainId.DOMAIN_4, 'sync3', 100);
-
-    assert.throws(function() {
-      mgr.getModelTimeTransformer(ClockDomainId.DOMAIN_1);
-    }, 'Unable to select a master clock domain because no clock domain is ' +
-        'directly connected to all others.');
-  }, testOptions);
-
-  test('getModelTimeTransformer_throwsWithNoClockSyncMarkers', function() {
-    var mgr = new ClockSyncManager();
-
-    assert.throws(function() {
-      mgr.getModelTimeTransformer(ClockDomainId.DOMAIN_1);
-    }, 'Unable to select a master clock domain because no clock domain is ' +
-        'directly connected to all others.');
-  }, testOptions);
+  // TODO()
 });
 </script>

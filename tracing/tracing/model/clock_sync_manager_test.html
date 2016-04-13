@@ -63,7 +63,7 @@ tr.b.unittest.testSuite(function() {
         'clock sync marker to it.');
   }, testOptions);
 
-  test('addClockSyncMarker_throwsWhenAddingDuplicateConnectors', function() {
+  test('addClockSyncMarker_throwsWhenAddingDuplicatePaths', function() {
     var mgr = new ClockSyncManager();
     mgr.addClockSyncMarker(ClockDomainId.DOMAIN_1, 'sync1', 100);
     mgr.addClockSyncMarker(ClockDomainId.DOMAIN_2, 'sync1', 100);
@@ -72,7 +72,7 @@ tr.b.unittest.testSuite(function() {
 
     assert.throws(function() {
       mgr.addClockSyncMarker(ClockDomainId.DOMAIN_2, 'sync2', 100);
-    }, 'Cannot add multiple connectors between the same clock domains.');
+    }, 'Cannot add multiple paths between the same clock domains.');
   }, testOptions);
 
   test('addClockSyncMarker_throwsAfterGetModelTimeTransformer', function() {
@@ -108,8 +108,6 @@ tr.b.unittest.testSuite(function() {
 
   test('getModelTimeTransformer_noMarkersChromeLegacyFirst', function() {
     var mgr = new ClockSyncManager();
-
-    mgr.getModelTimeTransformer(ClockDomainId.UNKNOWN_CHROME_LEGACY);
 
     assert.equal(
         mgr.getModelTimeTransformer(ClockDomainId.UNKNOWN_CHROME_LEGACY)(100),
@@ -162,7 +160,7 @@ tr.b.unittest.testSuite(function() {
         mgr.getModelTimeTransformer(ClockDomainId.DOMAIN_1)(100), 350);
     assert.strictEqual(
         mgr.getModelTimeTransformer(ClockDomainId.LINUX_CLOCK_MONOTONIC)(350),
-        100);
+        350);
   }, testOptions);
 
   test('getModelTimeTransformer_oneCompleteSyncWithChromeLegacyAfter',
@@ -173,12 +171,12 @@ tr.b.unittest.testSuite(function() {
 
     assert.strictEqual(
         mgr.getModelTimeTransformer(ClockDomainId.UNKNOWN_CHROME_LEGACY)(350),
-        100);
+        350);
     assert.strictEqual(
-        mgr.getModelTimeTransformer(ClockDomainId.DOMAIN_1)(100), 100);
+        mgr.getModelTimeTransformer(ClockDomainId.DOMAIN_1)(100), 350);
     assert.strictEqual(
         mgr.getModelTimeTransformer(ClockDomainId.LINUX_CLOCK_MONOTONIC)(350),
-        100);
+        350);
   }, testOptions);
 
   test('getModelTimeTransformer_twoCompleteSyncs', function() {
@@ -221,7 +219,7 @@ tr.b.unittest.testSuite(function() {
     assert.strictEqual(
         mgr.getModelTimeTransformer(ClockDomainId.DOMAIN_1)(100), 100);
     assert.strictEqual(
-        mgr.getModelTimeTransformer(ClockDomainId.DOMAIN_3)(300), 1000);
+        mgr.getModelTimeTransformer(ClockDomainId.DOMAIN_3)(300), 100);
   }, testOptions);
 
   test('getModelTimeTransformer_battorSyncUsesNormalTimestampWhenFast',

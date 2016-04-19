@@ -28,8 +28,7 @@ tr.exportTo('tr.e.importer.battor', function() {
     this.importPriority = 3; // runs after the linux_perf importer
     this.sampleRate_ = undefined;
     this.model_ = model;
-    this.events_ = events;
-    this.explicitSyncMark_ = undefined;
+    this.lines_ = events.split('\n');
   }
 
   var TestExports = {};
@@ -69,8 +68,20 @@ tr.exportTo('tr.e.importer.battor', function() {
      * Imports clock sync markers in this.events_ into model_.
      */
     importClockSyncMarkers: function() {
-      var lines = this.events_.split('\n');
-    }
+      for (var line of this.lines_) {
+        var groups = battorDataLineRE.exec(line);
+        if (!groups)
+          continue;
+
+        var ts = parseFloat(groups[1]);
+        var syncId = groups[4];
+
+        if (syncId) {
+          this.model_.clockSyncManager.addClockSyncMarker(
+              tr.model.ClockDomainId.BATTOR, syncId, ts);
+        }
+      }
+    },
 
     /**
      * Imports the data in this.events_ into model_.
@@ -86,20 +97,9 @@ tr.exportTo('tr.e.importer.battor', function() {
       }
 
       // Create series and import power samples into it.
-      var name = 'power';
       var series = new tr.model.PowerSeries(this.model_.device);
       this.importPowerSamples(series);
 
-      var shiftTs = this.explicitClockSync();
-      if (shiftTs === undefined) {
-        this.model_.importWarning({
-          type: 'clock_sync',
-          message: 'No clock sync marker for the BattOr could be found.'
-        });
-        return;
-      }
-
-      series.shiftTimestampsForward(shiftTs);
       this.model_.device.powerSeries = series;
     },
 
@@ -107,9 +107,11 @@ tr.exportTo('tr.e.importer.battor', function() {
      * Walks the events and populates a time series with power samples.
      */
     importPowerSamples: function(series) {
-      var lines = this.events_.split('\n');
+      var modelTimeTransformer =
+          this.model_.clockSyncManager.getModelTimeTransformer(
+            tr.model.ClockDomainId.BATTOR);
 
-      lines.forEach(function(line) {
+      this.lines_.forEach(function(line) {
         line = line.trim();
         if (line.length === 0)
           return;
@@ -132,61 +134,17 @@ tr.exportTo('tr.e.importer.battor', function() {
           }
 
           // Add power sample.
-          var time = parseFloat(groups[1]);
+          var ts = parseFloat(groups[1]);
           var voltage_V = parseFloat(groups[2]) / 1000;
           var current_A = parseFloat(groups[3]) / 1000;
 
           // Create power sample and convert to internal power units (Watts).
           var power_W = voltage_V * current_A;
-          series.addPowerSample(time, power_W);
-
-          // Found first explicit clock sync - save it.
-          if (groups[4] !== undefined &&
-            this.explicitSyncMark_ === undefined) {
-            var id = groups[4];
-            this.explicitSyncMark_ = {'id' : id, 'ts' : time};
-          }
+          series.addPowerSample(modelTimeTransformer(ts), power_W);
         }
       }, this);
-    },
-
-    explicitClockSync: function() {
-      // Check to see if an explicit clock sync was found in the BattOr trace.
-      if (this.explicitSyncMark_ === undefined)
-        return undefined;
-
-      // Try to get the matching clock sync record for this explicit sync.
-      var syncMarks = this.model.getClockSyncRecordsWithSyncId(
-          this.explicitSyncMark_['id']);
-      if (syncMarks.length !== 1) {
-        this.model_.importWarning({
-          type: 'missing_sync_marker',
-          message: 'No single clock sync record found for explicit clock sync.'
-        });
-        return undefined;
-      }
-
-      var clockSync = syncMarks[0];
-
-      // TODO(aschulman) Actual time of sync is assumed to be half-way between
-      // when the sync message was sent and when it was received.  Chromium's
-      // serial I/O library sends bytes within a millisecond, however it seems
-      // to take tens of milliseconds to receive bytes. Therefore, until we
-      // figure out how to receive bytes without this delay, time of sync is
-      // set to the time when the the bytes are sent.
-      var syncTs = clockSync.start;
-      var traceTs = this.explicitSyncMark_['ts'];
-
-      // Shift by the difference between the explicit sync timestamps.
-      return syncTs - traceTs;
-    },
-
-    foundExplicitSyncMark: function() {
-      return this.explicitSyncMark_ !== undefined;
     }
   };
-
-
 
   tr.importer.Importer.register(BattorImporter);
 

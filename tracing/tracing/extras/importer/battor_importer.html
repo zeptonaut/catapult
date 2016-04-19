@@ -66,6 +66,13 @@ tr.exportTo('tr.e.importer.battor', function() {
     },
 
     /**
+     * Imports clock sync markers in this.events_ into model_.
+     */
+    importClockSyncMarkers: function() {
+      var lines = this.events_.split('\n');
+    }
+
+    /**
      * Imports the data in this.events_ into model_.
      */
     importEvents: function() {
@@ -107,6 +114,10 @@ tr.exportTo('tr.e.importer.battor', function() {
       var minTs = 0;
       if (this.model_.bounds.min !== undefined)
         minTs = this.model_.bounds.min;
+
+      this.processLines_({
+        powerSampleLineHandler: this.processClockSyncEvent_
+      });
 
       lines.forEach(function(line) {
         line = line.trim();

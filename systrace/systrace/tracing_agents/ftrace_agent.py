@@ -4,8 +4,8 @@
 
 import os
 import sys
-import time
 
+from devil.utils import timeout_retry
 from systrace import tracing_agents
 
 class FtraceAgentIo(object):
@@ -115,13 +115,6 @@ class FtraceAgent(tracing_agents.TracingAgent):
       buffer_size = self._options.trace_buf_size
     return buffer_size
 
-  def _get_trace_time(self):
-    wait_time = 5
-    if ((self._options.trace_time is not None)
-        and (self._options.trace_time > 0)):
-      wait_time = self._options.trace_time
-    return wait_time
-
   def _fix_categories(self, categories):
     """
     Applies the default category (sched) if there are no categories
@@ -134,7 +127,7 @@ class FtraceAgent(tracing_agents.TracingAgent):
     return [x for x in categories
             if self._is_category_available(x)]
 
-  def StartAgentTracing(self, options, categories, timeout):
+  def _StartAgentTracingImpl(self, options, categories):
     """Start tracing.
     """
     self._options = options
@@ -161,20 +154,18 @@ class FtraceAgent(tracing_agents.TracingAgent):
 
     self._fio.writeFile(FT_TRACE_ON, '1')
 
-  def StopAgentTracing(self, timeout):
-    pass
+  def StartAgentTracing(self, options, categories, timeout):
+    return timeout_retry.Run(self._StartAgentTracingImpl,
+                             timeout, 1,
+                             args=[options, categories])
 
-  def GetResults(self, timeout):
+  def _StopAgentTracingImpl(self):
     """Collect the result of tracing.
 
     This function will block while collecting the result. For sync mode, it
     reads the data, e.g., from stdout, until it finishes. For async mode, it
     blocks until the agent is stopped and the data is ready.
     """
-    try:
-      time.sleep(self._get_trace_time())
-    except KeyboardInterrupt:
-      pass
     self._fio.writeFile(FT_TRACE_ON, '0')
     for category in self._categories:
       self._category_disable(category)
@@ -185,10 +176,19 @@ class FtraceAgent(tracing_agents.TracingAgent):
     if self._options.fix_circular:
       print "WARN: circular buffer fixups are not yet supported."
 
+  def StopAgentTracing(self, timeout):
+    return timeout_retry.Run(self._StopAgentTracingImpl,
+                             timeout, 1)
+
+  def _GetResultsImpl(self):
     # get the output
     d = self._fio.readFile(FT_TRACE)
     self._fio.writeFile(FT_BUFFER_SIZE, "1")
     return tracing_agents.TraceResult('trace-data', d)
+
+  def GetResults(self, timeout):
+    return timeout_retry.Run(self._GetResultsImpl,
+                             timeout, 1)
 
   def SupportsExplicitClockSync(self):
     return False

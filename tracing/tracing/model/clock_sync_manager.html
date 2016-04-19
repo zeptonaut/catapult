@@ -254,6 +254,7 @@ tr.exportTo('tr.model', function() {
     },
 
     /**
+<<<<<<< HEAD
      * Ensures that identity transformers exist UNKNOWN_LEGACY_CHROME and all
      * other Chrome clock domains. This solves the problem where domain A is
      * connected to UNKNOWN_CHROME_LEGACY, domain B is connected to
@@ -261,6 +262,10 @@ tr.exportTo('tr.model', function() {
      * aren't because the ClockSyncManager doesn't recognize that
      * UNKNOWN_CHROME_LEGACY and LINUX_CLOCK_MONOTONIC are in fact the same
      * clock domain.
+=======
+     * Substitutes all instances of |original| domain ID with |replacement|
+     * in registered clock sync markers.
+>>>>>>> ftrace_importer_identity
      */
     ensureLegacyTransformersExist_: function() {
       if (this.domainsSeen_.has(ClockDomainId.UNKNOWN_CHROME_LEGACY)) {

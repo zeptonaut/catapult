@@ -172,22 +172,8 @@ tr.b.unittest.testSuite(function() {
     assert.equal(x[1], '123.456');
   });
 
-  test('genericClockSync', function() {
-    var lines = [
-      '# tracer: nop',
-      '#',
-      '#           TASK-PID    CPU#    TIMESTAMP  FUNCTION',
-      '#              | |       |          |         |',
-      'sh-26121 [000] ...1 107464.0: tracing_mark_write: trace_event_clock_sync: name=battor regulator=8941_smbb_boost' // @suppress longLineCheck
-    ];
-    var m = newModel(lines.join('\n'));
-    assert.isFalse(m.hasImportWarnings);
-
-    var battorSyncs = m.getClockSyncRecordsWithSyncId('battor');
-    assert.equal(battorSyncs.length, 1);
-    assert.equal(battorSyncs[0].start, 107464000.0);
-    assert.equal(battorSyncs[0].args.regulator, '8941_smbb_boost');
-  });
+  // TODO(charliea): Once the BattOr importer is moved over, add a test case to
+  // make sure that ftrace and the BattOr can sync.
 
   test('canImport', function() {
     var lines = [

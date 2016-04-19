@@ -162,8 +162,9 @@ tr.exportTo('tr.model', function() {
       // TODO(charliea): Allow multiple paths between clock domains by selecting
       // the path with the least potential error.
       if (this.getTransformerBetween_(markers[0].domainId, domainId)) {
-        throw new Error('Cannot add multiple paths between the same clock ' +
-            'domains.');
+        throw new Error('The current code cannot handle multiple paths ' +
+            'between the same clock domains. However, this is a valid ' +
+            'operation.');
       }
 
       markers.push(marker);

@@ -72,7 +72,8 @@ tr.b.unittest.testSuite(function() {
 
     assert.throws(function() {
       mgr.addClockSyncMarker(ClockDomainId.DOMAIN_2, 'sync2', 100);
-    }, 'Cannot add multiple paths between the same clock domains.');
+    }, 'The current code cannot handle multiple paths between the same clock ' +
+        'domains. However, this is a valid operation.');
   }, testOptions);
 
   test('addClockSyncMarker_throwsAfterGetModelTimeTransformer', function() {

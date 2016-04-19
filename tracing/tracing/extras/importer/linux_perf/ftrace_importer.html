@@ -800,6 +800,9 @@ tr.exportTo('tr.e.importer.linux_perf', function() {
 
       // DO NOT SUBMIT until this is removed.
       var monotonicTs = event[1] * 1000;
+      if (monotonicTs === 0)
+        monotonicTs = ts;
+
       this.addClockSyncRecord_(new InstantClockSyncRecord(
           'ftrace_global_to_monotonic', ts, { monotonicTs: monotonicTs }));
 
@@ -811,7 +814,7 @@ tr.exportTo('tr.e.importer.linux_perf', function() {
           'linux_clock_monotonic_to_ftrace_global', ts);
       this.model_.clockSyncManager.addClockSyncMarker(
           tr.model.ClockDomainId.LINUX_CLOCK_MONOTONIC,
-          'linux_clock_monotonic_to_ftrace_global', event[1] * 1000);
+          'linux_clock_monotonic_to_ftrace_global', monotonicTs);
 
       return true;
     },

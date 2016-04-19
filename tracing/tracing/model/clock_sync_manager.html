@@ -26,6 +26,7 @@ tr.exportTo('tr.model', function() {
   };
 
   var CHROME_CLOCK_DOMAINS = new Set([
+    ClockDomainId.UNKNOWN_CHROME_LEGACY,
     ClockDomainId.LINUX_CLOCK_MONOTONIC,
     ClockDomainId.MAC_MACH_ABSOLUTE_TIME,
     ClockDomainId.WIN_ROLLOVER_PROTECTED_TIME_GET_TIME,
@@ -65,22 +66,16 @@ tr.exportTo('tr.model', function() {
   /**
    * Given two transformers, creates a third that's a composition of the two.
    *
-   * @param{function(Number): Number} toCurrentDomainTransformer A function
-   *     capable of converting a timestamp from some original domain into a
-   *     timestamp in the current domain.
-   * @param{function(Number): Number} toNextDomainTransformer A function capable
-   *     of converting a timestamp from the current domain into a timestamp in
-   *     the next domain.
+   * @param{function(Number): Number} aToB A function capable of converting a
+   *     timestamp from domain A to domain B.
+   * @param{function(Number): Number} bToC A function capable of converting a
+   *     timestamp from domain B to domain C.
    *
    * @returns{function(Number): Number} A function capable of converting a
-   *     timestamp from some original domain into a timestamp in the next
-   *     domain.
+   *     timestamp from domain A to domain C.
    */
-  function composeTransformers(
-      toCurrentDomainTransformer, toNextDomainTransformer) {
-    return function(ts) {
-      return toNextDomainTransformer(toCurrentDomainTransformer(ts));
-    };
+  function composeTransformers(aToB, bToC) {
+    return (ts) => { return bToC(aToB(ts)); };
   }
 
   // The number of milliseconds above which the BattOr sync is no longer
@@ -111,10 +106,8 @@ tr.exportTo('tr.model', function() {
     // A set of all domains seen by the ClockSyncManager.
     this.domainsSeen_ = new Set();
 
-    // TODO(charliea): Convert this to an ES6 map
-    this.markersBySyncId_ = {};
+    this.markersBySyncId_ = new Map();
 
-    // TODO(charliea): Convert this to a ES6 map
     // transformerMapByDomainId_[fromDomain][toDomain] returns the function
     // that, given a timestamp in fromDomain, returns that timestamp in
     // toDomain.
@@ -130,8 +123,8 @@ tr.exportTo('tr.model', function() {
      *                 sync marker.
      * @param {number} startTs The time (in ms) at which the sync started.
      * @param {number=} opt_endTs The time (in ms) at which the sync ended. If
-     *                 unspecified, it's assumed to be the same as the start,
-     *                 indicating an instantaneous sync.
+     *                  unspecified, it's assumed to be the same as the start,
+     *                  indicating an instantaneous sync.
      */
     addClockSyncMarker: function(domainId, syncId, startTs, opt_endTs) {
       this.domainsSeen_.add(domainId);
@@ -141,19 +134,19 @@ tr.exportTo('tr.model', function() {
             'clock domain IDs.');
       }
 
-      if (this.modelDomainId_ !== undefined) {
+      if (this.modelDomainId_) {
         throw new Error('Cannot add new clock sync markers after getting ' +
             'a model time transformer.');
       }
 
       var marker = new ClockSyncMarker(domainId, startTs, opt_endTs);
 
-      if (this.markersBySyncId_[syncId] === undefined) {
-        this.markersBySyncId_[syncId] = [marker];
+      if (!this.markersBySyncId_.has(syncId)) {
+        this.markersBySyncId_.set(syncId, [marker]);
         return;
       }
 
-      var markers = this.markersBySyncId_[syncId];
+      var markers = this.markersBySyncId_.get(syncId);
 
       if (markers.length === 2) {
         throw new Error('Clock sync with ID "' + syncId + '" is already ' +
@@ -164,8 +157,8 @@ tr.exportTo('tr.model', function() {
         throw new Error('A clock domain cannot sync with itself.');
       }
 
-      // TODO(charliea): Get rid of this restriction and instead choose the path
-      // between the two clock domains with the least potential error.
+      // TODO(charliea): Allow multiple paths between clock domains by selecting
+      // the path with the least potential error.
       if (this.getTransformerBetween_(markers[0].domainId, domainId)) {
         throw new Error('Cannot add multiple paths between the same clock ' +
             'domains.');
@@ -194,14 +187,12 @@ tr.exportTo('tr.model', function() {
       this.domainsSeen_.add(domainId);
       this.ensureLegacyTransformersExist_();
 
-      // TODO(charliea): If domainId is a Chrome one, then create clock sync
-      // markers to the other chrome domains.
-      if (this.modelDomainId_ === undefined)
+      if (!this.modelDomainId_)
         this.selectModelDomainId_(domainId);
 
       var transformer =
           this.getTransformerBetween_(domainId, this.modelDomainId_);
-      if (transformer === undefined) {
+      if (!transformer) {
         throw new Error('No clock sync markers exist pairing clock domain "' +
             domainId + '" ' + 'with model clock domain "' +
             this.modelDomainId_ + '".');
@@ -218,6 +209,7 @@ tr.exportTo('tr.model', function() {
 
       var visitedDomainById = {};
 
+      // Keep a queue of nodes to visit, starting with the "from" domain.
       var toVisit = [];
       toVisit.push({ domainId: fromDomainId, transformer: tr.b.identity });
 
@@ -234,10 +226,15 @@ tr.exportTo('tr.model', function() {
         var outgoingTransformers =
             this.transformerMapByDomainId_[current.domainId];
 
-        if (outgoingTransformers === undefined)
+        if (!outgoingTransformers)
           continue;
 
+        // Add all nodes that are directly connected to this one to the queue.
         for (var outgoingDomainId in outgoingTransformers) {
+          // We have two transformers: one to get us from the "from" domain to
+          // the current domain, and another to get us from the current domain
+          // to the next domain. By composing those two transformers, we can
+          // create one that gets us from the "from" domain to the next domain.
           var toNextDomainTransformer = outgoingTransformers[outgoingDomainId];
           var toCurrentDomainTransformer = current.transformer;
 
@@ -264,6 +261,9 @@ tr.exportTo('tr.model', function() {
     ensureLegacyTransformersExist_: function() {
       if (this.domainsSeen_.has(ClockDomainId.UNKNOWN_CHROME_LEGACY)) {
         for (var domainId of CHROME_CLOCK_DOMAINS) {
+          if (domainId === ClockDomainId.UNKNOWN_CHROME_LEGACY)
+            continue;
+
           if (this.domainsSeen_.has(domainId)) {
             this.collapseDomains_(
                 ClockDomainId.UNKNOWN_CHROME_LEGACY, domainId);
@@ -272,8 +272,19 @@ tr.exportTo('tr.model', function() {
       }
     },
 
+    /**
+     * Selects the domain to use as the model domain from among the domains
+     * with registered markers.
+     *
+     * This is necessary because, before all timestamps can be shifted onto the
+     * same domain, some common domain must be chosen.
+     *
+     * For the time being, if a Chrome time domain is present, then that clock
+     * domain is selected as the model. Otherwise, the first clock domain
+     * alphabetically is selected.
+     */
     selectModelDomainId_: function(requestedTransformerDomainId) {
-      if (tr.b.dictionaryLength(this.markersBySyncId_) === 0) {
+      if (this.markersBySyncId_.size === 0) {
         this.modelDomainId_ = requestedTransformerDomainId;
         return true;
       }
@@ -283,50 +294,70 @@ tr.exportTo('tr.model', function() {
             'clock domain is directly connected to all others.');
       }
 
-      var uniqueDomainIds = this.uniqueDomainIds_();
-      uniqueDomainIds.sort();
-      this.modelDomainId_ = uniqueDomainIds[0];
+      var domainIds = this.domainIds_();
+      domainIds.add(requestedTransformerDomainId);
+
+      // While we're migrating to the new clock sync system, we have to make
+      // sure to prefer the Chrome clock domain because legacy clock sync
+      // mechanisms assume that's the case.
+      for (var chromeDomainId of CHROME_CLOCK_DOMAINS) {
+        if (domainIds.has(chromeDomainId)) {
+          this.modelDomainId_ = ClockDomainId.UNKNOWN_CHROME_LEGACY;
+          return;
+        }
+      }
+
+      var domainIdsArray = Array.from(domainIds);
+      domainIdsArray.sort();
+      this.modelDomainId_ = domainIdsArray[0];
     },
 
+    /**
+     * Returns (and creates if it doesn't exist) the transformer map describing
+     * how to transform timestamps between directly connected clock domains.
+     */
     getOrCreateTransformerMap_: function(domainId) {
-      if (this.transformerMapByDomainId_[domainId] === undefined)
+      if (!this.transformerMapByDomainId_[domainId])
         this.transformerMapByDomainId_[domainId] = {};
 
       return this.transformerMapByDomainId_[domainId];
     },
 
+    /** Makes timestamps in the two clock domains interchangeable. */
     collapseDomains_: function(domain1Id, domain2Id) {
-      addClockSyncMarker(domain1Id, domain1Id + '_TO_' + domain2Id, 0);
-      addClockSyncMarker(domain2Id, domain1Id + '_TO_' + domain2Id, 0);
+      this.getOrCreateTransformerMap_(domain1Id)[domain2Id] =
+          this.getOrCreateTransformerMap_(domain2Id)[domain1Id] = tr.b.identity;
     },
 
     /** Returns true when all domains with registered markers are connected. */
     allDomainsAreConnected_: function() {
-      var uniqueDomainIds = this.uniqueDomainIds_();
-
       // NOTE: this is a ridiculously inefficient way to do this. Given how few
       // clock domains we're likely to have, this shouldn't be a problem.
-      for (var i = 1; i < uniqueDomainIds.length; i++) {
-        if (this.getTransformerBetween_(
-            uniqueDomainIds[0], uniqueDomainIds[i]) === undefined) {
-          return false;
+      var firstDomainId = undefined;
+      for (var domainId of this.domainIds_()) {
+        if (!firstDomainId){
+          firstDomainId = domainId;
+          continue;
         }
+
+        if (!this.getTransformerBetween_(firstDomainId, domainId))
+          return false;
       }
 
       return true;
     },
 
-    uniqueDomainIds_: function() {
-      var uniqueDomainIds = {};
+    /** Returns a set of IDs for domains with registered markers. */
+    domainIds_: function() {
+       var domainIds = new Set();
 
-      for (var syncId in this.markersBySyncId_) {
-        var marks = this.markersBySyncId_[syncId];
+      for (var marks of this.markersBySyncId_.values()) {
         for (var i = 0; i < marks.length; i++) {
-          uniqueDomainIds[marks[i].domainId] = true;
+          domainIds.add(marks[i].domainId);
         }
       }
 
-      return Object.keys(uniqueDomainIds);
+      return domainIds;
     }
   };
 

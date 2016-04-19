@@ -18,11 +18,11 @@ tr.b.unittest.testSuite(function() {
   var testOptions = {
     setUp: function() {
       // Add a few testing clock domains to the list of permissible domains.
-      ClockDomainId.DOMAIN_1 = 'domain1';
-      ClockDomainId.DOMAIN_2 = 'domain2';
-      ClockDomainId.DOMAIN_3 = 'domain3';
-      ClockDomainId.DOMAIN_4 = 'domain4';
-      ClockDomainId.DOMAIN_5 = 'domain5';
+      ClockDomainId.DOMAIN_1 = 'DOMAIN1';
+      ClockDomainId.DOMAIN_2 = 'DOMAIN2';
+      ClockDomainId.DOMAIN_3 = 'DOMAIN3';
+      ClockDomainId.DOMAIN_4 = 'DOMAIN4';
+      ClockDomainId.DOMAIN_5 = 'DOMAIN5';
     },
 
     tearDown: function() {
@@ -102,8 +102,8 @@ tr.b.unittest.testSuite(function() {
 
     assert.throws(function() {
       mgr.getModelTimeTransformer(ClockDomainId.DOMAIN_2);
-    }, 'No clock sync markers exist pairing clock domain "domain2" with model' +
-        ' clock domain "domain1".');
+    }, 'No clock sync markers exist pairing clock domain "DOMAIN2" with model' +
+        ' clock domain "DOMAIN1".');
   }, testOptions);
 
   test('getModelTimeTransformer_noMarkersChromeLegacyFirst', function() {
@@ -184,7 +184,7 @@ tr.b.unittest.testSuite(function() {
     mgr.addClockSyncMarker(ClockDomainId.DOMAIN_1, 'sync1', 100);
     mgr.addClockSyncMarker(ClockDomainId.DOMAIN_2, 'sync1', 350);
 
-    var tx = mgr.getTransformerBetween_("domain1", "domain3");
+    var tx = mgr.getTransformerBetween_("DOMAIN1", "DOMAIN3");
     mgr.addClockSyncMarker(ClockDomainId.DOMAIN_1, 'sync2', 200);
     mgr.addClockSyncMarker(ClockDomainId.DOMAIN_3, 'sync2', 250);
 
@@ -348,8 +348,8 @@ tr.b.unittest.testSuite(function() {
 
     assert.throws(function() {
       mgr.getModelTimeTransformer(ClockDomainId.DOMAIN_2);
-    }, 'No clock sync markers exist pairing clock domain "domain2" with model' +
-        ' clock domain "domain1".');
+    }, 'No clock sync markers exist pairing clock domain "DOMAIN2" with model' +
+        ' clock domain "DOMAIN1".');
   }, testOptions);
 
   test('getModelTimeTransformer_throwsWithTwoDistinctGraphs', function() {
@@ -369,8 +369,6 @@ tr.b.unittest.testSuite(function() {
         'directly connected to all others.');
   }, testOptions);
 
-  // TODO(charliea): Write a test that throws when there are cycles.
-
-  // TODO()
+  // TODO(charliea): Add a test to make sure that we choose the Chrome domain.
 });
 </script>

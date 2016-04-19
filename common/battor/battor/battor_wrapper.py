@@ -21,6 +21,7 @@ class BattorWrapper(object):
   _STOP_TRACING_CMD = 'StopTracing'
   _SUPPORTS_CLOCKSYNC_CMD = 'SupportsExplicitClockSync'
   _RECORD_CLOCKSYNC_CMD = 'RecordClockSyncMarker'
+  _SUPPORTED_PLATFORMS = ['android', 'chromeos', 'linux', 'mac', 'win']
 
   def __init__(self, target_platform, android_device=None, battor_path=None,
                battor_map_file=None, battor_map=None):
@@ -123,6 +124,13 @@ class BattorWrapper(object):
   def _GetBattorPath(self, target_platform, android_device=None,
                      battor_path=None, battor_map_file=None, battor_map=None):
     """Determines most likely path to the correct BattOr."""
+    if target_platform not in self._SUPPORTED_PLATFORMS:
+      raise battor_error.BattorError(
+          '%s is an unsupported platform.' % target_platform)
+    if target_platform in ['win']:
+      # TODO: We need a way to automatically detect correct port.
+      # crbug.com/60397
+      return 'COM3'
     device_tree = find_usb_devices.GetBusNumberToDeviceTreeMap(fast=True)
     if battor_path:
       if not isinstance(battor_path, basestring):
@@ -158,7 +166,7 @@ class BattorWrapper(object):
 
   def _SendBattorCommand(self, cmd, check_return=True):
     status = self._SendBattorCommandImpl(cmd, return_results=check_return)
-    if check_return and status != 'Done.\n':
+    if check_return and not 'Done.' in status:
       raise battor_error.BattorError(
           'BattOr did not complete command \'%s\' correctly.\n'
           'Outputted: %s' % (cmd, status))

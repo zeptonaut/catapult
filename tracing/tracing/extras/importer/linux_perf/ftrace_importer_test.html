@@ -173,7 +173,9 @@ tr.b.unittest.testSuite(function() {
   });
 
   // TODO(charliea): Once the BattOr importer is moved over, add a test case to
-  // make sure that ftrace and the BattOr can sync.
+  // make sure that ftrace and the BattOr can sync. Right now, no one's using
+  // the ftrace/BattOr sync (and there are almost no legacy traces that rely on
+  // it), so it's okay for us to not support the sync.
 
   test('canImport', function() {
     var lines = [

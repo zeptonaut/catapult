@@ -66,12 +66,12 @@ tr.exportTo('tr.model', function() {
   /**
    * Given two transformers, creates a third that's a composition of the two.
    *
-   * @param{function(Number): Number} aToB A function capable of converting a
+   * @param {function(Number): Number} aToB A function capable of converting a
    *     timestamp from domain A to domain B.
-   * @param{function(Number): Number} bToC A function capable of converting a
+   * @param {function(Number): Number} bToC A function capable of converting a
    *     timestamp from domain B to domain C.
    *
-   * @returns{function(Number): Number} A function capable of converting a
+   * @returns {function(Number): Number} A function capable of converting a
    *     timestamp from domain A to domain C.
    */
   function composeTransformers(aToB, bToC) {

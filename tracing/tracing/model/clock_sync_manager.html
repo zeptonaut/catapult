@@ -306,7 +306,7 @@ tr.exportTo('tr.model', function() {
       // mechanisms assume that's the case.
       for (var chromeDomainId of CHROME_CLOCK_DOMAINS) {
         if (domainIds.has(chromeDomainId)) {
-          this.modelDomainId_ = ClockDomainId.UNKNOWN_CHROME_LEGACY;
+          this.modelDomainId_ = chromeDomainId;
           return;
         }
       }

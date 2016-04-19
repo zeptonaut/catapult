@@ -75,7 +75,9 @@ tr.exportTo('tr.model', function() {
    *     timestamp from domain A to domain C.
    */
   function composeTransformers(aToB, bToC) {
-    return (ts) => { return bToC(aToB(ts)); };
+    return (ts) => {
+      return bToC(aToB(ts));
+    };
   }
 
   // The number of milliseconds above which the BattOr sync is no longer

@@ -184,7 +184,7 @@ tr.b.unittest.testSuite(function() {
     mgr.addClockSyncMarker(ClockDomainId.DOMAIN_1, 'sync1', 100);
     mgr.addClockSyncMarker(ClockDomainId.DOMAIN_2, 'sync1', 350);
 
-    var tx = mgr.getTransformerBetween_("DOMAIN1", "DOMAIN3");
+    var tx = mgr.getTransformerBetween_('DOMAIN1', 'DOMAIN3');
     mgr.addClockSyncMarker(ClockDomainId.DOMAIN_1, 'sync2', 200);
     mgr.addClockSyncMarker(ClockDomainId.DOMAIN_3, 'sync2', 250);
 

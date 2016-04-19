@@ -60,7 +60,7 @@ tr.exportTo('tr.model', function() {
     }
 
     var tsShift = toTs - fromTs;
-    return (ts) => { return ts + tsShift; };
+    return function(ts) { return ts + tsShift; };
   }
 
   /**
@@ -75,8 +75,6 @@ tr.exportTo('tr.model', function() {
    *     timestamp from domain A to domain C.
    */
   function composeTransformers(aToB, bToC) {
-    // TODO(charliea): Move this over to an arrow function once our linter
-    // supports them better.
     return function(ts) {
       return bToC(aToB(ts));
     };

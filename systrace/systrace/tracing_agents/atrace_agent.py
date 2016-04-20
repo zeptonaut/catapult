@@ -11,6 +11,7 @@ import time
 import zlib
 
 from devil.android import device_utils
+from devil.utils import timeout_retry
 from systrace import tracing_agents
 from systrace import util
 
@@ -36,21 +37,6 @@ BOOTTRACE_PROP = 'persist.debug.atrace.boottrace'
 # The file path for specifying categories to be traced during boot.
 BOOTTRACE_CATEGORIES = '/data/misc/boottrace/categories'
 
-# This list is based on the tags in frameworks/native/include/utils/Trace.h for
-# legacy platform.
-LEGACY_TRACE_TAG_BITS = (
-    ('gfx', 1 << 1),
-    ('input', 1 << 2),
-    ('view', 1 << 3),
-    ('webview', 1 << 4),
-    ('wm', 1 << 5),
-    ('am', 1 << 6),
-    ('sm', 1 << 7),
-    ('audio', 1 << 8),
-    ('video', 1 << 9),
-    ('camera', 1 << 10),
-)
-
 
 def list_categories(options):
   """List the possible trace event categories.
@@ -64,12 +50,20 @@ def list_categories(options):
   devutils = device_utils.DeviceUtils(options.device_serial)
   print '\n'.join(devutils.RunShellCommand(LIST_CATEGORIES_ARGS))
 
+def get_available_categories(options):
+  """Gets the list of atrace categories available for tracing.
+  Args:
+      options: Tracing options.
+  """
+  devutils = device_utils.DeviceUtils(options.device_serial)
+  categories_output = devutils.RunShellCommand(LIST_CATEGORIES_ARGS)
+  return [c.split('-')[0].strip() for c in categories_output]
 
 def try_create_agent(options):
   if options.target != 'android':
     return False
   if options.from_file is not None:
-    return AtraceAgent()
+    return False
 
   device_sdk_version = util.get_device_sdk_version()
   if device_sdk_version >= 18:
@@ -84,9 +78,53 @@ def try_create_agent(options):
       return BootAgent()
     else:
       return AtraceAgent()
-  elif device_sdk_version >= 16:
-    return AtraceLegacyAgent()
+  else:
+    return False
 
+def _construct_extra_atrace_args(options, categories):
+  """Construct extra arguments (-a, -k, categories) for atrace command.
+
+  Args:
+      options: Tracing options.
+      categories: Categories of trace events to capture.
+  """
+  extra_args = []
+
+  if options.app_name is not None:
+    extra_args.extend(['-a', options.app_name])
+
+  if options.kfuncs is not None:
+    extra_args.extend(['-k', options.kfuncs])
+
+  extra_args.extend(categories)
+  return extra_args
+
+def _construct_trace_args(options, categories):
+  """Builds the command used to invoke a trace process.
+  Returns:
+    A tuple where the first element is an array of command arguments, and
+    the second element is a boolean which will be true if the command will
+    stream trace data.
+  """
+  atrace_args = ATRACE_BASE_ARGS[:]
+
+  if options.compress_trace_data:
+    atrace_args.extend(['-z'])
+
+  if (options.trace_time is not None) and (options.trace_time > 0):
+    atrace_args.extend(['-t', str(options.trace_time)])
+
+  if (options.trace_buf_size is not None) and (options.trace_buf_size > 0):
+    atrace_args.extend(['-b', str(options.trace_buf_size)])
+
+  elif 'sched' in categories:
+    # 'sched' is a high-volume tag, double the default buffer size
+    # to accommodate that
+    atrace_args.extend(['-b', '4096'])
+  extra_args = _construct_extra_atrace_args(options, categories)
+
+  atrace_args.extend(extra_args)
+  return atrace_args
 
 class AtraceAgent(tracing_agents.TracingAgent):
 
@@ -98,22 +136,38 @@ class AtraceAgent(tracing_agents.TracingAgent):
     self._options = None
     self._categories = None
 
-  def StartAgentTracing(self, options, categories, timeout):
+  def _StartAgentTracingImpl(self, options, categories):
     self._options = options
     self._categories = categories
     if not self._categories:
-      self._categories = get_default_categories(self._options.device_serial)
-    self._tracer_args = self._construct_trace_command()
+      self._categories = DEFAULT_CATEGORIES
+    avail_cats = get_available_categories(options)
+    unavailable = [x for x in self._categories if x not in avail_cats]
+    self._categories = [x for x in self._categories if x in avail_cats]
+    if unavailable:
+      print 'These categories are unavailable: ' + ' '.join(unavailable)
+    self._tracer_args = _construct_trace_args(self._options, self._categories)
 
-    self._adb = do_popen(self._tracer_args)
+    shell = ['adb', '-s', self._options.device_serial, 'shell']
+    self._adb = do_popen(shell + self._tracer_args)
 
-  def StopAgentTracing(self, timeout):
+  def StartAgentTracing(self, options, categories, timeout):
+    return timeout_retry.Run(self._StartAgentTracingImpl, timeout, 1,
+                             args=[options, categories])
+
+  def _StopAgentTracingImpl(self):
     pass
 
-  def GetResults(self, timeout):
+  def StopAgentTracing(self, timeout):
+    return timeout_retry.Run(self._StopAgentTracingImpl, timeout, 1)
+
+  def _GetResultsImpl(self):
     trace_data = self._collect_trace_data()
     self._trace_data = self._preprocess_trace_data(trace_data)
     return tracing_agents.TraceResult('trace-data', self._trace_data)
+
+  def GetResults(self, timeout):
+    return timeout_retry.Run(self._GetResultsImpl, timeout, 1)
 
   def SupportsExplicitClockSync(self):
     return False
@@ -126,51 +180,6 @@ class AtraceAgent(tracing_agents.TracingAgent):
   def _construct_list_categories_command(self):
     return util.construct_adb_shell_command(
           LIST_CATEGORIES_ARGS, self._options.device_serial)
-
-  def _construct_extra_trace_command(self):
-    extra_args = []
-    if self._options.app_name is not None:
-      extra_args.extend(['-a', self._options.app_name])
-
-    if self._options.kfuncs is not None:
-      extra_args.extend(['-k', self._options.kfuncs])
-
-    extra_args.extend(self._categories)
-    return extra_args
-
-  def _construct_trace_command(self):
-    """Builds a command-line used to invoke a trace process.
-
-    Returns:
-      A tuple where the first element is an array of command-line arguments, and
-      the second element is a boolean which will be true if the commend will
-      stream trace data.
-    """
-    if self._options.from_file:
-      tracer_args = ['cat', self._options.from_file]
-    else:
-      atrace_args = ATRACE_BASE_ARGS[:]
-      if self._options.compress_trace_data:
-        atrace_args.extend(['-z'])
-
-      if ((self._options.trace_time is not None)
-          and (self._options.trace_time > 0)):
-        atrace_args.extend(['-t', str(self._options.trace_time)])
-
-      if ((self._options.trace_buf_size is not None)
-          and (self._options.trace_buf_size > 0)):
-        atrace_args.extend(['-b', str(self._options.trace_buf_size)])
-      elif 'sched' in self._categories:
-        # 'sched' is a high-volume tag, double the default buffer size
-        # to accommodate that
-        atrace_args.extend(['-b', '4096'])
-      extra_args = self._construct_extra_trace_command()
-      atrace_args.extend(extra_args)
-
-      tracer_args = util.construct_adb_shell_command(
-          atrace_args, self._options.device_serial)
-
-    return tracer_args
 
   def _collect_trace_data(self):
     # Read the output from ADB in a worker thread.  This allows us to monitor
@@ -318,83 +327,16 @@ class AtraceAgent(tracing_agents.TracingAgent):
     return trace_data
 
 
-class AtraceLegacyAgent(AtraceAgent):
-
-  def _construct_list_categories_command(self):
-    LEGACY_CATEGORIES = """       sched - CPU Scheduling
-        freq - CPU Frequency
-        idle - CPU Idle
-        load - CPU Load
-        disk - Disk I/O (requires root)
-         bus - Bus utilization (requires root)
-   workqueue - Kernel workqueues (requires root)"""
-    return ["echo", LEGACY_CATEGORIES]
-
-  def StartAgentTracing(self, options, categories, timeout=10):
-    super(AtraceLegacyAgent, self).StartAgentTracing(options, categories,
-                                                     timeout=timeout)
-    SHELL_ARGS = ['getprop', 'debug.atrace.tags.enableflags']
-    output, return_code = util.run_adb_shell(SHELL_ARGS,
-                                             self._options.device_serial)
-    if return_code != 0:
-      print >> sys.stderr, (
-          '\nThe command "%s" failed with the following message:'
-          % ' '.join(SHELL_ARGS))
-      print >> sys.stderr, str(output)
-      sys.exit(1)
-
-    flags = 0
-    try:
-      if output.startswith('0x'):
-        flags = int(output, 16)
-      elif output.startswith('0'):
-        flags = int(output, 8)
-      else:
-        flags = int(output)
-    except ValueError:
-      pass
-
-    if flags:
-      tags = []
-      for desc, bit in LEGACY_TRACE_TAG_BITS:
-        if bit & flags:
-          tags.append(desc)
-      categories = tags + self._categories
-      print 'Collecting data with following categories:', ' '.join(categories)
-
-  def _construct_extra_trace_command(self):
-    extra_args = []
-    if not self._categories:
-      self._categories = ['sched', ]
-    if 'sched' in self._categories:
-      extra_args.append('-s')
-    if 'freq' in self._categories:
-      extra_args.append('-f')
-    if 'idle' in self._categories:
-      extra_args.append('-i')
-    if 'load' in self._categories:
-      extra_args.append('-l')
-    if 'disk' in self._categories:
-      extra_args.append('-d')
-    if 'bus' in self._categories:
-      extra_args.append('-u')
-    if 'workqueue' in self._categories:
-      extra_args.append('-w')
-
-    return extra_args
-
-
 class BootAgent(AtraceAgent):
   """AtraceAgent that specializes in tracing the boot sequence."""
 
   def __init__(self):
     super(BootAgent, self).__init__()
 
-  def StartAgentTracing(self, options, categories, timeout=10):
+  def _StartAgentTracingImpl(self, options, categories):
     self._options = options
-    self._categories = categories
     try:
-      setup_args = self._construct_setup_command()
+      setup_args = _construct_boot_setup_command(options, categories)
       try:
         subprocess.check_call(setup_args)
         print 'Hit Ctrl+C once the device has booted up.'
@@ -402,7 +344,7 @@ class BootAgent(AtraceAgent):
           time.sleep(1)
       except KeyboardInterrupt:
         pass
-      tracer_args = self._construct_trace_command()
+      tracer_args = _construct_boot_trace_command(options)
       self._adb = subprocess.Popen(tracer_args, stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE)
     except OSError as error:
@@ -412,21 +354,25 @@ class BootAgent(AtraceAgent):
       print >> sys.stderr, '    ', error
       sys.exit(1)
 
-  def _construct_setup_command(self):
-    echo_args = ['echo'] + self._categories + ['>', BOOTTRACE_CATEGORIES]
-    setprop_args = ['setprop', BOOTTRACE_PROP, '1']
-    reboot_args = ['reboot']
-    return util.construct_adb_shell_command(
-        echo_args + ['&&'] + setprop_args + ['&&'] + reboot_args,
-        self._options.device_serial)
+  def StartAgentTracing(self, options, categories, timeout):
+    return timeout_retry.Run(self._StartAgentTracingImpl, timeout, 1,
+                             args=[options, categories])
 
-  def _construct_trace_command(self):
-    atrace_args = ['atrace', '--async_stop']
-    setprop_args = ['setprop', BOOTTRACE_PROP, '0']
-    rm_args = ['rm', BOOTTRACE_CATEGORIES]
-    return util.construct_adb_shell_command(
-          atrace_args + ['&&'] + setprop_args + ['&&'] + rm_args,
-          self._options.device_serial)
+def _construct_boot_setup_command(options, categories):
+  echo_args = ['echo'] + categories + ['>', BOOTTRACE_CATEGORIES]
+  setprop_args = ['setprop', BOOTTRACE_PROP, '1']
+  reboot_args = ['reboot']
+  return util.construct_adb_shell_command(
+      echo_args + ['&&'] + setprop_args + ['&&'] + reboot_args,
+      options.device_serial)
+
+def _construct_boot_trace_command(options):
+  atrace_args = ['atrace', '--async_stop']
+  setprop_args = ['setprop', BOOTTRACE_PROP, '0']
+  rm_args = ['rm', BOOTTRACE_CATEGORIES]
+  return util.construct_adb_shell_command(
+        atrace_args + ['&&'] + setprop_args + ['&&'] + rm_args,
+        options.device_serial)
 
 
 class FileReaderThread(threading.Thread):

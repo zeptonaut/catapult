@@ -73,13 +73,10 @@ tr.exportTo('tr.model', function() {
 
         var timeIntersection = measurementRange.findIntersection(sampleRange);
 
-        // Divide by 1000 to convert milliwatts to watts.
-        var powerInWatts = sample.power / 1000.0;
-
         // Divide by 1000 to convert milliseconds to seconds.
         var durationInSeconds = timeIntersection.duration / 1000;
 
-        energyConsumed += durationInSeconds * powerInWatts;
+        energyConsumed += durationInSeconds * sample.power;
       }
 
       return energyConsumed;
@@ -98,6 +95,10 @@ tr.exportTo('tr.model', function() {
 
       this.bounds.addValue(this.samples_[0].start);
       this.bounds.addValue(this.samples_[this.samples_.length - 1].start);
+    },
+
+    findTopmostSlicesInThisContainer: function(eventPredicate, callback,
+                                               opt_this) {
     },
 
     iterateAllEventsInThisContainer: function(eventTypePredicate, callback,

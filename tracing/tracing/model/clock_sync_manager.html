@@ -106,12 +106,10 @@ tr.exportTo('tr.model', function() {
   function ClockSyncManager() {
     // A set of all domains seen by the ClockSyncManager.
     this.domainsSeen_ = new Set();
-
     this.markersBySyncId_ = new Map();
-
-    // transformerMapByDomainId_[fromDomain][toDomain] returns the function
-    // that, given a timestamp in fromDomain, returns that timestamp in
-    // toDomain.
+    // transformerMapByDomainId_[fromDomainId][toDomainId] returns the function
+    // that converts timestamps in the "from" domain to timestamps in the "to"
+    // domain.
     this.transformerMapByDomainId_ = {};
   }
 
@@ -174,7 +172,7 @@ tr.exportTo('tr.model', function() {
     },
 
     /**
-     * Returns a function that, given a timestamp in the domain with |domainId|
+     * Returns a function that, given a timestamp in the domain with |domainId|,
      * returns a timestamp in the model's clock domain.
      *
      * NOTE: All clock sync markers should be added before calling this function
@@ -201,8 +199,10 @@ tr.exportTo('tr.model', function() {
       return transformer;
     },
 
-    // Returns a function that, given a timestamp in |fromDomainId|, returns a
-    // timestamp in |toDomainId|.
+    /**
+     * Returns a function that, given a timestamp in the "from" domain, returns
+     * a timestamp in the "to" domain.
+     */
     getTransformerBetween_: function(fromDomainId, toDomainId) {
       // Do a breadth-first search (Djikstra's algorithm) from the "from" domain
       // until we reach the "to" domain.
@@ -251,12 +251,12 @@ tr.exportTo('tr.model', function() {
      * Selects the domain to use as the model domain from among the domains
      * with registered markers.
      *
-     * This is necessary because, before all timestamps can be shifted onto the
-     * same domain, some common domain must be chosen.
+     * This is necessary because some common domain must be chosen before all
+     * timestamps can be shifted onto the same domain.
      *
-     * For the time being, if a Chrome time domain is present, then that clock
-     * domain is selected as the model. Otherwise, the first clock domain
-     * alphabetically is selected.
+     * For the time being, preference is given to Chrome clock domains. If no
+     * Chrome clock domain is present, the first clock domain alphabetically
+     * is selected.
      */
     selectModelDomainId_: function() {
       this.ensureAllDomainsAreConnected_();
@@ -274,23 +274,6 @@ tr.exportTo('tr.model', function() {
       var domainsSeenArray = Array.from(this.domainsSeen_);
       domainsSeenArray.sort();
       this.modelDomainId_ = domainsSeenArray[0];
-    },
-
-    /**
-     * Returns (and creates if it doesn't exist) the transformer map describing
-     * how to transform timestamps between directly connected clock domains.
-     */
-    getOrCreateTransformerMap_: function(domainId) {
-      if (!this.transformerMapByDomainId_[domainId])
-        this.transformerMapByDomainId_[domainId] = {};
-
-      return this.transformerMapByDomainId_[domainId];
-    },
-
-    /** Makes timestamps in the two clock domains interchangeable. */
-    collapseDomains_: function(domain1Id, domain2Id) {
-      this.getOrCreateTransformerMap_(domain1Id)[domain2Id] =
-          this.getOrCreateTransformerMap_(domain2Id)[domain1Id] = tr.b.identity;
     },
 
     /** Throws an error if all domains are not connected. */
@@ -334,6 +317,23 @@ tr.exportTo('tr.model', function() {
 
       this.domainsSeen_.add(domainId);
     },
+
+    /** Makes timestamps in the two clock domains interchangeable. */
+    collapseDomains_: function(domain1Id, domain2Id) {
+      this.getOrCreateTransformerMap_(domain1Id)[domain2Id] =
+          this.getOrCreateTransformerMap_(domain2Id)[domain1Id] = tr.b.identity;
+    },
+
+    /**
+     * Returns (and creates if it doesn't exist) the transformer map describing
+     * how to transform timestamps between directly connected clock domains.
+     */
+    getOrCreateTransformerMap_: function(domainId) {
+      if (!this.transformerMapByDomainId_[domainId])
+        this.transformerMapByDomainId_[domainId] = {};
+
+      return this.transformerMapByDomainId_[domainId];
+    }
   };
 
   /**

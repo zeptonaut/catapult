@@ -110,10 +110,10 @@ tr.b.unittest.testSuite(function() {
   test('getModelTimeTransformer_noMarkersChromeLegacyFirst', function() {
     var mgr = new ClockSyncManager();
 
-    assert.equal(
+    assert.strictEqual(
         mgr.getModelTimeTransformer(ClockDomainId.UNKNOWN_CHROME_LEGACY)(100),
         100);
-    assert.equal(
+    assert.strictEqual(
         mgr.getModelTimeTransformer(ClockDomainId.LINUX_CLOCK_MONOTONIC)(100),
         100);
   }, testOptions);
@@ -121,10 +121,10 @@ tr.b.unittest.testSuite(function() {
   test('getModelTimeTransformer_noMarkersChromeLegacySecond', function() {
     var mgr = new ClockSyncManager();
 
-    assert.equal(
+    assert.strictEqual(
         mgr.getModelTimeTransformer(ClockDomainId.LINUX_CLOCK_MONOTONIC)(100),
         100);
-    assert.equal(
+    assert.strictEqual(
         mgr.getModelTimeTransformer(ClockDomainId.UNKNOWN_CHROME_LEGACY)(100),
         100);
   }, testOptions);
@@ -343,16 +343,6 @@ tr.b.unittest.testSuite(function() {
         350);
   }, testOptions);
 
-  test('getModelTimeTransformer_throwsWithNoAgentMarker', function() {
-    var mgr = new ClockSyncManager();
-    mgr.addClockSyncMarker(ClockDomainId.DOMAIN_1, 'sync1', 100);
-
-    assert.throws(function() {
-      mgr.getModelTimeTransformer(ClockDomainId.DOMAIN_2);
-    }, 'No clock sync markers exist pairing clock domain "DOMAIN2" with model' +
-        ' clock domain "DOMAIN1".');
-  }, testOptions);
-
   test('getModelTimeTransformer_throwsWithTwoDistinctGraphs', function() {
     var mgr = new ClockSyncManager();
     mgr.addClockSyncMarker(ClockDomainId.DOMAIN_1, 'sync1', 100);
@@ -366,10 +356,8 @@ tr.b.unittest.testSuite(function() {
 
     assert.throws(function() {
       mgr.getModelTimeTransformer(ClockDomainId.DOMAIN_5);
-    }, 'Unable to select a master clock domain because no clock domain is ' +
-        'directly connected to all others.');
+    }, 'Unable to select a master clock domain because no path can be found ' +
+        'from "DOMAIN1" to "DOMAIN4"');
   }, testOptions);
-
-  // TODO(charliea): Add a test to make sure that we choose the Chrome domain.
 });
 </script>

@@ -25,7 +25,7 @@ tr.exportTo('tr.model', function() {
     WIN_QPC: 'WIN_QPC'
   };
 
-  var CHROME_CLOCK_DOMAINS = new Set([
+  var POSSIBLE_CHROME_CLOCK_DOMAINS = new Set([
     ClockDomainId.UNKNOWN_CHROME_LEGACY,
     ClockDomainId.LINUX_CLOCK_MONOTONIC,
     ClockDomainId.MAC_MACH_ABSOLUTE_TIME,
@@ -33,10 +33,15 @@ tr.exportTo('tr.model', function() {
     ClockDomainId.WIN_QPC
   ]);
 
+  // The number of milliseconds above which the BattOr sync is no longer
+  // considered "fast", and it's more accurate to use the sync start timestamp
+  // instead of the normal sync timestamp due to a bug in the Chrome serial code
+  // making serial reads too slow.
+  var BATTOR_FAST_SYNC_THRESHOLD_MS = 3;
+
   /**
-   * Returns a function that, given a timestamp in fromMarker's domain, returns
-   * a timestamp in toMarker's domain.timestamps in fromMarker's domain into
-   * timestamps in toMarker's domain.
+   * Returns a function that, given a timestamp in |fromMarker|'s domain,
+   * returns a timestamp in |toMarker|'s domain.
    */
   function createTransformer(fromMarker, toMarker) {
     var fromTs = fromMarker.ts, toTs = toMarker.ts;
@@ -51,10 +56,10 @@ tr.exportTo('tr.model', function() {
     // for BattOr and just use the controller's start timestamp as the sync
     // time. In the medium term, we should fix the Chrome serial code in order
     // to remove this special logic and get an even more accurate estimate.
-    if (fromMarker.domainId == ClockDomainId.BATTOR &&
+    if (fromMarker.domainId === ClockDomainId.BATTOR &&
         toMarker.duration > BATTOR_FAST_SYNC_THRESHOLD_MS) {
       toTs = toMarker.startTs;
-    } else if (toMarker.domainId == ClockDomainId.BATTOR &&
+    } else if (toMarker.domainId === ClockDomainId.BATTOR &&
         fromMarker.duration > BATTOR_FAST_SYNC_THRESHOLD_MS) {
       fromTs = fromMarker.startTs;
     }
@@ -79,12 +84,6 @@ tr.exportTo('tr.model', function() {
       return bToC(aToB(ts));
     };
   }
-
-  // The number of milliseconds above which the BattOr sync is no longer
-  // considered "fast", and it's more accurate to use the sync start timestamp
-  // instead of the normal sync timestamp due to a bug in the Chrome serial code
-  // making serial reads too slow.
-  var BATTOR_FAST_SYNC_THRESHOLD_MS = 3;
 
   /**
    * A ClockSyncManager holds clock sync markers and uses them to shift
@@ -129,7 +128,7 @@ tr.exportTo('tr.model', function() {
      *                  indicating an instantaneous sync.
      */
     addClockSyncMarker: function(domainId, syncId, startTs, opt_endTs) {
-      this.domainsSeen_.add(domainId);
+      this.onDomainSeen_(domainId);
 
       if (tr.b.dictionaryValues(ClockDomainId).indexOf(domainId) < 0) {
         throw new Error('"' + domainId + '" is not in the list of known ' +
@@ -155,9 +154,8 @@ tr.exportTo('tr.model', function() {
             'complete - cannot add a third clock sync marker to it.');
       }
 
-      if (markers[0].domainId === domainId) {
+      if (markers[0].domainId === domainId)
         throw new Error('A clock domain cannot sync with itself.');
-      }
 
       // TODO(charliea): Allow multiple paths between clock domains by selecting
       // the path with the least potential error.
@@ -176,7 +174,7 @@ tr.exportTo('tr.model', function() {
     },
 
     /**
-     * Returns a function that, given a timestamp in the specified clock domain,
+     * Returns a function that, given a timestamp in the domain with |domainId|
      * returns a timestamp in the model's clock domain.
      *
      * NOTE: All clock sync markers should be added before calling this function
@@ -187,11 +185,10 @@ tr.exportTo('tr.model', function() {
      * the first alphabetically is selected.
      */
     getModelTimeTransformer: function(domainId) {
-      this.domainsSeen_.add(domainId);
-      this.ensureLegacyTransformersExist_();
+      this.onDomainSeen_(domainId);
 
       if (!this.modelDomainId_)
-        this.selectModelDomainId_(domainId);
+        this.selectModelDomainId_();
 
       var transformer =
           this.getTransformerBetween_(domainId, this.modelDomainId_);
@@ -207,11 +204,9 @@ tr.exportTo('tr.model', function() {
     // Returns a function that, given a timestamp in |fromDomainId|, returns a
     // timestamp in |toDomainId|.
     getTransformerBetween_: function(fromDomainId, toDomainId) {
-      if (fromDomainId === toDomainId)
-        return tr.b.identity;
-
-      var visitedDomainById = {};
-
+      // Do a breadth-first search (Djikstra's algorithm) from the "from" domain
+      // until we reach the "to" domain.
+      var visitedDomainIds = new Set();
       // Keep a queue of nodes to visit, starting with the "from" domain.
       var toVisit = [];
       toVisit.push({ domainId: fromDomainId, transformer: tr.b.identity });
@@ -219,12 +214,12 @@ tr.exportTo('tr.model', function() {
       while (toVisit.length > 0) {
         var current = toVisit.shift();
 
-        if (visitedDomainById[current.domainId])
-          continue;
-        visitedDomainById[current.domainId] = true;
-
         if (current.domainId === toDomainId)
           return current.transformer;
+
+        if (visitedDomainIds.has(current.domainId))
+          continue;
+        visitedDomainIds.add(current.domainId);
 
         var outgoingTransformers =
             this.transformerMapByDomainId_[current.domainId];
@@ -253,29 +248,6 @@ tr.exportTo('tr.model', function() {
     },
 
     /**
-     * Ensures that identity transformers exist UNKNOWN_LEGACY_CHROME and all
-     * other Chrome clock domains. This solves the problem where domain A is
-     * connected to UNKNOWN_CHROME_LEGACY, domain B is connected to
-     * LINUX_CLOCK_MONOTONIC, and domains A and B should be connected, but they
-     * aren't because the ClockSyncManager doesn't recognize that
-     * UNKNOWN_CHROME_LEGACY and LINUX_CLOCK_MONOTONIC are in fact the same
-     * clock domain.
-     */
-    ensureLegacyTransformersExist_: function() {
-      if (this.domainsSeen_.has(ClockDomainId.UNKNOWN_CHROME_LEGACY)) {
-        for (var domainId of CHROME_CLOCK_DOMAINS) {
-          if (domainId === ClockDomainId.UNKNOWN_CHROME_LEGACY)
-            continue;
-
-          if (this.domainsSeen_.has(domainId)) {
-            this.collapseDomains_(
-                ClockDomainId.UNKNOWN_CHROME_LEGACY, domainId);
-          }
-        }
-      }
-    },
-
-    /**
      * Selects the domain to use as the model domain from among the domains
      * with registered markers.
      *
@@ -286,33 +258,22 @@ tr.exportTo('tr.model', function() {
      * domain is selected as the model. Otherwise, the first clock domain
      * alphabetically is selected.
      */
-    selectModelDomainId_: function(requestedTransformerDomainId) {
-      if (this.markersBySyncId_.size === 0) {
-        this.modelDomainId_ = requestedTransformerDomainId;
-        return true;
-      }
-
-      if (!this.allDomainsAreConnected_()) {
-        throw new Error('Unable to select a master clock domain because no ' +
-            'clock domain is directly connected to all others.');
-      }
-
-      var domainIds = this.domainIds_();
-      domainIds.add(requestedTransformerDomainId);
+    selectModelDomainId_: function() {
+      this.ensureAllDomainsAreConnected_();
 
       // While we're migrating to the new clock sync system, we have to make
       // sure to prefer the Chrome clock domain because legacy clock sync
       // mechanisms assume that's the case.
-      for (var chromeDomainId of CHROME_CLOCK_DOMAINS) {
-        if (domainIds.has(chromeDomainId)) {
+      for (var chromeDomainId of POSSIBLE_CHROME_CLOCK_DOMAINS) {
+        if (this.domainsSeen_.has(chromeDomainId)) {
           this.modelDomainId_ = chromeDomainId;
           return;
         }
       }
 
-      var domainIdsArray = Array.from(domainIds);
-      domainIdsArray.sort();
-      this.modelDomainId_ = domainIdsArray[0];
+      var domainsSeenArray = Array.from(this.domainsSeen_);
+      domainsSeenArray.sort();
+      this.modelDomainId_ = domainsSeenArray[0];
     },
 
     /**
@@ -332,36 +293,47 @@ tr.exportTo('tr.model', function() {
           this.getOrCreateTransformerMap_(domain2Id)[domain1Id] = tr.b.identity;
     },
 
-    /** Returns true when all domains with registered markers are connected. */
-    allDomainsAreConnected_: function() {
+    /** Throws an error if all domains are not connected. */
+    ensureAllDomainsAreConnected_: function() {
       // NOTE: this is a ridiculously inefficient way to do this. Given how few
       // clock domains we're likely to have, this shouldn't be a problem.
       var firstDomainId = undefined;
-      for (var domainId of this.domainIds_()) {
+      for (var domainId of this.domainsSeen_) {
         if (!firstDomainId) {
           firstDomainId = domainId;
           continue;
         }
 
-        if (!this.getTransformerBetween_(firstDomainId, domainId))
-          return false;
+        if (!this.getTransformerBetween_(firstDomainId, domainId)) {
+          throw new Error('Unable to select a master clock domain because no ' +
+              'path can be found from "' + firstDomainId + '" to "' + domainId +
+              '".');
+        }
       }
 
       return true;
     },
 
-    /** Returns a set of IDs for domains with registered markers. */
-    domainIds_: function() {
-       var domainIds = new Set();
+    /** Observer called each time that a clock domain is seen. */
+    onDomainSeen_: function(domainId) {
+      if (domainId === ClockDomainId.UNKNOWN_CHROME_LEGACY &&
+          !this.domainsSeen_.has(ClockDomainId.UNKNOWN_CHROME_LEGACY)) {
+        // UNKNOWN_CHROME_LEGACY was just seen for the first time: collapse it
+        // and the other Chrome clock domains into one.
+        //
+        // This makes sure that we don't have two separate clock sync graphs:
+        // one attached to UNKNOWN_CHROME_LEGACY and the other attached to the
+        // real Chrome clock domain.
+        for (var domainId of POSSIBLE_CHROME_CLOCK_DOMAINS) {
+          if (domainId === ClockDomainId.UNKNOWN_CHROME_LEGACY)
+            continue;
 
-      for (var marks of this.markersBySyncId_.values()) {
-        for (var i = 0; i < marks.length; i++) {
-          domainIds.add(marks[i].domainId);
+          this.collapseDomains_(ClockDomainId.UNKNOWN_CHROME_LEGACY, domainId);
         }
       }
 
-      return domainIds;
-    }
+      this.domainsSeen_.add(domainId);
+    },
   };
 
   /**

@@ -86,6 +86,18 @@ def parse_options(argv):
                     default=True, action='store_false',
                     help='Tell the device not to send the trace data in '
                     'compressed form.')
+  parser.add_option('--hubs', dest='hub_types', default='plugable_7port',
+                    help='List of hub types to check for for BattOr mapping. '
+                    'Used when updating mapping file.')
+  parser.add_option('--serial-map', dest='serial_map',
+                    default='serial_map.json',
+                    help='File containing pregenerated map of phone serial '
+                    'numbers to BattOr serial numbers.')
+  parser.add_option('--battor_path', dest='battor_path', default=None,
+                    type='string', help='specify a BattOr path to use')
+  parser.add_option('--update-map', dest='update_map', default=False,
+                    action='store_true',
+                    help='force update of phone-to-BattOr map')
   parser.add_option('--link-assets', dest='link_assets', default=False,
                     action='store_true',
                     help='(deprecated)')
@@ -93,13 +105,15 @@ def parse_options(argv):
                     help='reboot the device with tracing during boot enabled. '
                     'The report is created by hitting Ctrl+C after the device '
                     'has booted up.')
+  parser.add_option('--battor', dest='battor', default=False,
+                    action='store_true', help='Use the BattOr tracing agent.')
   parser.add_option('--from-file', dest='from_file', action='store',
                     help='read the trace from a file (compressed) rather than '
                     'running a live trace')
   parser.add_option('--asset-dir', dest='asset_dir', default='trace-viewer',
                     type='string', help='(deprecated)')
-  parser.add_option('-e', '--serial', dest='device_serial', type='string',
-                    help='adb device serial number')
+  parser.add_option('-e', '--serial', dest='device_serial_number',
+                    type='string', help='adb device serial number')
   parser.add_option('--agent-dirs', dest='agent_dirs', type='string',
                     help='the directories of additional systrace agent modules.'
                     ' The directories should be comma separated, e.g., '
@@ -225,13 +239,13 @@ def main():
   else:
     update_systrace_trace_viewer.update()
 
-  if options.target == 'android' and not options.device_serial:
+  if options.target == 'android' and not options.device_serial_number:
     devices = get_device_serials()
     if len(devices) == 0:
       raise RuntimeError('No ADB devices connected.')
     elif len(devices) >= 2:
       raise RuntimeError('Multiple devices connected, serial number required')
-    options.device_serial = devices[0]
+    options.device_serial_number = devices[0]
 
   if options.list_categories:
     if options.target == 'android':

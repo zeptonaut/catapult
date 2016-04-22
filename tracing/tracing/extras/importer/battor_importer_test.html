@@ -21,9 +21,9 @@ tr.b.unittest.testSuite(function() {
       cat: 'foo', tid: 53, ph: 'B'
     },
     {
-      pid: 94936, tid: 5643, ts: 1005,
+      pid: 94936, tid: 5643, ts: 15000,
       ph: 'c', cat: '__metadata', name: 'clock_sync',
-      args: {sync_id: 'ABCDEF-01234-5678-0A1B2C3D', issue_ts: 1003},
+      args: {sync_id: 'ABCDEF-01234-5678-0A1B2C3D', issue_ts: 10000},
       tts: 16496444
     }
   ];
@@ -49,7 +49,7 @@ tr.b.unittest.testSuite(function() {
 
   test('importExplicitClockSync', function() {
     // Add a BattOr sample with an explicit clock sync.
-    var battorLinesWithExplicitSync = BATTOR_LINES;
+    var battorLinesWithExplicitSync = BATTOR_LINES.slice();
     battorLinesWithExplicitSync.push(
       '2.500000 1.000000 4000.000000 <ABCDEF-01234-5678-0A1B2C3D>');
 
@@ -71,33 +71,15 @@ tr.b.unittest.testSuite(function() {
     m.importOptions = io;
 
     // Add a BattOr sample with an explicit clock sync.
-    var battorLinesWithExplicitSync = BATTOR_LINES;
+    var battorLinesWithExplicitSync = BATTOR_LINES.slice();
     battorLinesWithExplicitSync.push(
       '2.500000 1.000000 4000.000000 <ABCDEF-01234-5678-0A1B2C3D>');
 
-    // Create BattOr importer and import the trace.
-    var importer = new tr.e.importer.battor.BattorImporter(
-        m, battorLinesWithExplicitSync.join('\n'));
-    var series = new tr.model.PowerSeries(m.device);
-    importer.importPowerSamples(series);
+    var m = tr.c.TestUtils.newModelWithEvents(
+        [battorLinesWithExplicitSync.join('\n')]);
 
-    // Check to see if explicit clock sync was found by parser.
-    assert.isTrue(importer.foundExplicitSyncMark());
-
-    // Check to make sure explicit sync fails because there are no marks.
-    var syncMarks = [];
-    assert.isUndefined(importer.explicitClockSync(series, syncMarks));
-    assert.isUndefined(m.device.powerSeries);
+    assert.equal(m.device.powerSeries.samples[0].start, 0);
+    assert.equal(m.device.powerSeries.samples[5].start, 2.5);
   });
-
-  test('importNotEnoughSamples', function() {
-    assert.throw(function() {
-      var m = tr.c.TestUtils.newModelWithEvents(
-          BATTOR_LINES.slice(0, 5).join('\n'));
-    })
-  });
-
-  // TODO(charliea): Once systrace/BattOr sync is working, add a test here
-  // verifying such.
 });
 </script>

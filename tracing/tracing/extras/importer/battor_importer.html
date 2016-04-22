@@ -31,6 +31,8 @@ tr.exportTo('tr.e.importer.battor', function() {
     this.lines_ = events.split('\n');
   }
 
+  var TestExports = {};
+
   var battorDataLineRE = new RegExp(
       '^(\\d+\\.\\d+)\\s+(\\d+\\.\\d+)\\s+(\\d+\\.\\d+)' +
       '(?:\\s+<(\\S+)>)?$'
@@ -73,11 +75,11 @@ tr.exportTo('tr.e.importer.battor', function() {
 
         var ts = parseFloat(groups[1]);
         var syncId = groups[4];
+        if (!syncId)
+          continue;
 
-        if (syncId) {
-          this.model_.clockSyncManager.addClockSyncMarker(
-              tr.model.ClockDomainId.BATTOR, syncId, ts);
-        }
+        this.model_.clockSyncManager.addClockSyncMarker(
+            tr.model.ClockDomainId.BATTOR, syncId, ts);
       }
     },
 
@@ -132,13 +134,13 @@ tr.exportTo('tr.e.importer.battor', function() {
           }
 
           // Add power sample.
-          var ts = parseFloat(groups[1]);
+          var time = parseFloat(groups[1]);
           var voltage_V = parseFloat(groups[2]) / 1000;
           var current_A = parseFloat(groups[3]) / 1000;
 
           // Create power sample and convert to internal power units (Watts).
           var power_W = voltage_V * current_A;
-          series.addPowerSample(modelTimeTransformer(ts), power_W);
+          series.addPowerSample(modelTimeTransformer(time), power_W);
         }
       }, this);
     }
@@ -148,6 +150,7 @@ tr.exportTo('tr.e.importer.battor', function() {
 
   return {
     BattorImporter: BattorImporter,
+    _BattorImporterTestExports: TestExports
   };
 });
 

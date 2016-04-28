@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<!--
+Copyright 2016 The Chromium Authors. All rights reserved.
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+-->
+
+<link rel="import" href="/tracing/base/extension_registry.html">
+
+<script>
+'use strict';
+
+// TODO(charliea): We should add a new type of extension registry mode that
+// we can use to register Polymer elements. We used to be able to do this with
+// subclassing and the Polymer element type registry, but this isn't available
+// in Polymer 1.0.
+tr.exportTo('tr.ui.side_panel', function() {
+  /**
+   * SidePanelRegistry is an entity for side panel Polymer elements to register
+   * on so that they'll render a side panel if the model has the correct data.
+   *
+   * @constructor
+   */
+  function SidePanelRegistry() {}
+
+  SidePanelRegistry.elementNames_ = new Set();
+
+  SidePanelRegistry.register = function(elementName) {
+    SidePanelRegistry.elementNames_.add(elementName);
+  }
+
+  SidePanelRegistry.getAllRegisteredTypeInfos = function() {
+    return SidePanelRegistry.elementNames_;
+  }
+
+  return {
+    SidePanelRegistry: SidePanelRegistry
+  };
+});
+</script>

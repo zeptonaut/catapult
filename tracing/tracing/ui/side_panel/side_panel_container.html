@@ -193,8 +193,7 @@ Polymer({
     this.tabStrip_.textContent = '';
     var supportedPanelTypes = [];
 
-    var panelTypes =
-        SidePanelRegistry.getAllRegisteredTypeInfos();
+    var panelTypes = SidePanelRegistry.getAllRegisteredTypeInfos();
     for (var panelType of panelTypes) {
       var labelEl = document.createElement('tab-strip-label');
       var panel = document.createElement(panelType);

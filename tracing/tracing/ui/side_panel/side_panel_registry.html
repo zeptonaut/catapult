@@ -10,31 +10,27 @@ found in the LICENSE file.
 <script>
 'use strict';
 
-// TODO(charliea): We should add a new type of extension registry mode that
-// we can use to register Polymer elements. We used to be able to do this with
-// subclassing and the Polymer element type registry, but this isn't available
-// in Polymer 1.0.
+// TODO(charliea): This can probably be cleaned up so that we don't have to
+// manually wrap the Polymer element names with a function and
+// `document.createElement` at each of the registration sites by creating a
+// new "Polymer" registration mode.
 tr.exportTo('tr.ui.side_panel', function() {
   /**
    * SidePanelRegistry is an entity for side panel Polymer elements to register
    * on so that they'll render a side panel if the model has the correct data.
+   *
+   * Example usage:
+   *
+   *   SidePanelRegistry.register(function() {
+   *     return document.createElement('my-side-panel');
+   *   });
    *
    * @constructor
    */
   function SidePanelRegistry() {}
 
   var options = new tr.b.ExtensionRegistryOptions(tr.b.BASIC_REGISTRY_MODE);
-  tr.b.decorateExtensionRegistry(EventRegistry, options);
-
-  SidePanelRegistry.elementNames_ = new Set();
-
-  SidePanelRegistry.register = function(elementName) {
-    SidePanelRegistry.elementNames_.add(elementName);
-  }
-
-  SidePanelRegistry.getAllRegisteredTypeInfos = function() {
-    return SidePanelRegistry.elementNames_;
-  }
+  tr.b.decorateExtensionRegistry(SidePanelRegistry, options);
 
   return {
     SidePanelRegistry: SidePanelRegistry

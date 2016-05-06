@@ -368,7 +368,7 @@ Polymer({
     var modelInstanceChanged = model != this.model;
     var modelValid = model && !model.bounds.isEmpty;
 
-    var importWarningsEl = this.shadowRoot.querySelector('#import-warnings');
+    var importWarningsEl = Polymer.dom(this.root.querySelector('#import-warnings'));
     importWarningsEl.textContent = '';
 
     // Remove old trackView if the model has completely changed.

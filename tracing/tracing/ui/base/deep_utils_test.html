@@ -7,45 +7,70 @@ found in the LICENSE file.
 
 <link rel="import" href="/tracing/ui/base/deep_utils.html">
 
+<dom-module id='tr-ui-b-deep-utils-test-a'>
+  <template>
+    <div></div>
+  </template>
+  <script>
+  Polymer({
+    is: 'tr-ui-b-deep-utils-test-a'
+  });
+  </script>
+</dom-module>
+
+<dom-module id='tr-ui-b-deep-utils-test-b'>
+  <template>
+    <div></div>
+  </template>
+  <script>
+  Polymer({
+    is: 'tr-ui-b-deep-utils-test-b'
+  });
+  </script>
+</dom-module>
+
+<dom-module id='tr-ui-b-deep-utils-test-c'>
+  <template>
+    <tr-ui-b-deep-utils-test-b class='x'></tr-ui-b-deep-utils-test-b>
+    <tr-ui-b-deep-utils-test-a class='x'></tr-ui-b-deep-utils-test-a>
+    <tr-ui-b-deep-utils-test-a class='x'></tr-ui-b-deep-utils-test-a>
+  </template>
+  <script>
+  Polymer({
+    is: 'tr-ui-b-deep-utils-test-c'
+  });
+  </script>
+</dom-module>
+
+<dom-module id='tr-ui-b-deep-utils-test-d'>
+  <template>
+    <tr-ui-b-deep-utils-test-c></tr-ui-b-deep-utils-test-c>
+  </template>
+  <script>
+  Polymer({
+    is: 'tr-ui-b-deep-utils-test-d'
+  });
+  </script>
+</dom-module>
 <script>
 'use strict';
 
 tr.b.unittest.testSuite(function() {
-  function createElement(tagName, opt_class) {
-    var el = document.createElement(tagName);
-    if (opt_class)
-      el.className = opt_class;
-    return el;
-  }
-
   test('testFindDeepElementMatching', function() {
-    var a = createElement('a');
-    var a_ = a.createShadowRoot();
+    var a = document.createElement('tr-ui-b-deep-utils-test-d');
 
-    var b = createElement('b');
-    Polymer.dom(a_).appendChild(b);
-
-    var b_ = b.createShadowRoot();
-    Polymer.dom(b_).appendChild(createElement('c', 'x'));
-
-    var m = tr.b.findDeepElementMatching(a, 'c.x');
-    assert.equal(m, b_.children[0]);
+    var m = tr.b.findDeepElementMatching(a, 'tr-ui-b-deep-utils-test-b.x');
+    assert.isDefined(m);
+    assert.equal(m.tagName, 'TR-UI-B-DEEP-UTILS-TEST-B');
   });
 
   test('testFindDeepElementsMatching', function() {
-    var a = createElement('a');
-    var a_ = a.createShadowRoot();
+    var a = document.createElement('tr-ui-b-deep-utils-test-d');
 
-    var b = createElement('b');
-    Polymer.dom(a_).appendChild(b);
-
-    var b_ = b.createShadowRoot();
-    Polymer.dom(b_).appendChild(createElement('c', 'x'));
-    Polymer.dom(b_).appendChild(createElement('c', 'x'));
-
-    var m = tr.b.findDeepElementsMatching(a, 'c.x');
-    assert.equal(m[0], b_.children[0]);
-    assert.equal(m[1], b_.children[1]);
+    var m = tr.b.findDeepElementsMatching(a, 'tr-ui-b-deep-utils-test-a.x');
+    assert.isDefined(m);
+    assert.equal(m[0].tagName, 'TR-UI-B-DEEP-UTILS-TEST-A');
+    assert.equal(m[1].tagName, 'TR-UI-B-DEEP-UTILS-TEST-A');
   });
 });
 </script>

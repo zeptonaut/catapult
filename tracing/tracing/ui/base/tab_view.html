@@ -77,10 +77,10 @@ found in the LICENSE file.
       }
     </style>
 
-    <tab-strip>
-      <tab-strip-heading id="tshh">
+    <div>
+      <h1 id="tshh">
         <span id="tsh"></span>
-      </tab-strip-heading>
+      </h1>
       <template is="dom-repeat" items="{{tabs_}}">
         <tab-button
             button-id="{{item.id }}"
@@ -88,7 +88,21 @@ found in the LICENSE file.
             selected="{{_computeTabSelectState(selectedTab_, item)}}">
           <button-label>{{_computeTabLabel(item)}}</button-label>
         </tab-button>
-      </template>
+      </template>      
+    </div>
+
+
+    <tab-strip>
+      <tab-strip-heading id="tshh">
+        <span id="tsh"></span>
+      </tab-strip-heading>
+      <tab-button
+            button-id="{{item.id }}"
+            on-click="tabButtonSelectHandler_"
+            selected="{{_computeTabSelectState(selectedTab_, item)}}">
+          <button-label>{{_computeTabLabel(item)}}</button-label>
+        </tab-button>
+      </template>      
     </tab-strip>
 
     <tabs-content-container id='content-container'>

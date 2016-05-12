@@ -11,57 +11,42 @@ found in the LICENSE file.
   <template>
     <div></div>
   </template>
-  <script>
-  'use strict';
-
-  Polymer({
-    is: 'tr-ui-b-deep-utils-test-a'
-  });
-  </script>
 </dom-module>
-
 <dom-module id='tr-ui-b-deep-utils-test-b'>
   <template>
     <div></div>
   </template>
-  <script>
-  'use strict';
-
-  Polymer({
-    is: 'tr-ui-b-deep-utils-test-b'
-  });
-  </script>
 </dom-module>
-
 <dom-module id='tr-ui-b-deep-utils-test-c'>
   <template>
     <tr-ui-b-deep-utils-test-b class='x'></tr-ui-b-deep-utils-test-b>
     <tr-ui-b-deep-utils-test-a class='x'></tr-ui-b-deep-utils-test-a>
     <tr-ui-b-deep-utils-test-a class='x'></tr-ui-b-deep-utils-test-a>
   </template>
-  <script>
-  'use strict';
-
-  Polymer({
-    is: 'tr-ui-b-deep-utils-test-c'
-  });
-  </script>
 </dom-module>
-
 <dom-module id='tr-ui-b-deep-utils-test-d'>
   <template>
     <tr-ui-b-deep-utils-test-c></tr-ui-b-deep-utils-test-c>
   </template>
-  <script>
-  'use strict';
-
-  Polymer({
-    is: 'tr-ui-b-deep-utils-test-d'
-  });
-  </script>
 </dom-module>
 <script>
 'use strict';
+
+Polymer({
+  is: 'tr-ui-b-deep-utils-test-a'
+});
+
+Polymer({
+  is: 'tr-ui-b-deep-utils-test-b'
+});
+
+Polymer({
+  is: 'tr-ui-b-deep-utils-test-c'
+});
+
+Polymer({
+  is: 'tr-ui-b-deep-utils-test-d'
+});
 
 tr.b.unittest.testSuite(function() {
   test('testFindDeepElementMatching', function() {

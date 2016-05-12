@@ -124,7 +124,18 @@ found in the LICENSE file.
     Polymer({
 
       is: 'alerts-page',
-      loading: true,
+      properties: {
+        loading: {
+          type: Boolean,
+          value: true,
+          notify: true
+        },
+        error: {
+          type: String,
+          value: '',
+          notify: true
+        }
+      },
 
       get anomaliesTable() {
         return this.$['anomaly-table'];
@@ -190,7 +201,8 @@ found in the LICENSE file.
         }
       },
 
-      onPushHistoryState: function(event, detail, sender) {
+      onPushHistoryState: function(event, detail) {
+        var sender = event.currentTarget;
         if (!sender) {
           return;
         }

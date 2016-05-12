@@ -15,11 +15,11 @@ found in the LICENSE file.
         box-sizing: border-box;
       }
 
-      tab-strip.hidden {
+      div#tab-strip.hidden {
         display: none;
       }
 
-      tab-strip {
+      div#tab-strip {
         background-color: rgb(236, 236, 236);
         border-bottom: 1px solid #8e8e8e;
         display: flex;
@@ -30,21 +30,21 @@ found in the LICENSE file.
         font-size: 12px;
       }
 
-      tab-button {
+      button {
         display: block;
         flex: 0 0 auto;
         padding: 4px 15px 1px 15px;
         margin-top: 2px;
       }
 
-      tab-button[selected=true] {
+      button[selected=true] {
         background-color: white;
         border: 1px solid rgb(163, 163, 163);
         border-bottom: none;
         padding: 3px 14px 1px 14px;
       }
 
-      tabs-content-container {
+      div#tabs-content-container {
         display: flex;
         flex: 1 1 auto;
         overflow: auto;
@@ -59,40 +59,35 @@ found in the LICENSE file.
         display: none;
       }
 
-      button-label {
+      label {
         display: inline;
       }
 
-      tab-strip-heading {
+      h1#tshh {
         display: block;
         flex: 0 0 auto;
         padding: 4px 15px 1px 15px;
         margin-top: 2px;
         margin-before: 20px;
         margin-after: 10px;
-      }
-      #tsh {
-        display: inline;
         font-weight: bold;
       }
     </style>
 
-    <div>
-      <h1 id="tshh">
-        <span id="tsh"></span>
-      </h1>
+    <div id="tab-strip">
+      <h1></h1>
       <template is="dom-repeat" items="{{tabs_}}">
-        <tab-button
-            button-id="{{item.id }}"
+        <button
+            id="{{item.id }}"
             on-click="tabButtonSelectHandler_"
             selected="{{_computeTabSelectState(selectedTab_, item)}}">
-          <button-label>{{_computeTabLabel(item)}}</button-label>
-        </tab-button>
-      </template>      
+          <label>{{_computeTabLabel(item)}}</label>
+        </button>
+      </template>
     </div>
 
 
-    <tab-strip>
+<!--    <tab-strip>
       <tab-strip-heading id="tshh">
         <span id="tsh"></span>
       </tab-strip-heading>
@@ -102,12 +97,12 @@ found in the LICENSE file.
             selected="{{_computeTabSelectState(selectedTab_, item)}}">
           <button-label>{{_computeTabLabel(item)}}</button-label>
         </tab-button>
-      </template>      
-    </tab-strip>
+      </template>
+    </tab-strip> -->
 
-    <tabs-content-container id='content-container'>
+    <div id=content-container'>
         <content></content>
-    </tabs-content-container>
+    </div>
 
   </template>
 </dom-module>
@@ -127,6 +122,9 @@ window.TracingAnalysisTabView = Polymer({
   },
 
   ready: function() {
+    this.contentContainer_ =
+        Polymer.dom(this.root).querySelector('#content-container');
+
     this.$.tshh.style.display = 'none';
 
     // A tab is represented by the following tuple:
@@ -161,12 +159,13 @@ window.TracingAnalysisTabView = Polymer({
     return this.$.tsh.textContent;
   },
 
-  set tabStripHeadingText(tabStripHeadingText) {
-    this.$.tsh.textContent = tabStripHeadingText;
-    if (!!tabStripHeadingText)
-      this.$.tshh.style.display = '';
+  set tabStripHeadingText(text) {
+    var heading = Polymer.dom(this.root).querySelector('h1');
+    heading.textContent = text;
+    if (!!text)
+      heading.style.display = '';
     else
-      this.$.tshh.style.display = 'none';
+      heading.style.display = 'none';
   },
 
   get selectedTab() {
@@ -209,13 +208,13 @@ window.TracingAnalysisTabView = Polymer({
   },
 
   get tabsHidden() {
-    var ts = Polymer.dom(this.root).querySelector('tab-strip');
+    var ts = Polymer.dom(this.root).querySelector('div#tab-strip');
     return ts.classList.contains('hidden');
   },
 
   set tabsHidden(tabsHidden) {
     tabsHidden = !!tabsHidden;
-    var ts = Polymer.dom(this.root).querySelector('tab-strip');
+    var ts = Polymer.dom(this.root).querySelector('div#tab-strip');
     if (tabsHidden)
       ts.classList.add('hidden');
     else
@@ -374,7 +373,7 @@ window.TracingAnalysisTabView = Polymer({
    * Handler called when a click event happens on any of the tab buttons.
    */
   tabButtonSelectHandler_: function(event, detail, sender) {
-    this.changeSelectedTabById_(sender.getAttribute('button-id'));
+    this.changeSelectedTabById_(sender.getAttribute('id'));
   },
 
   /**
@@ -417,17 +416,17 @@ window.TracingAnalysisTabView = Polymer({
   saveCurrentTabScrollPosition_: function() {
     if (this.selectedTab_) {
       this.selectedTab_.content._savedScrollTop =
-          this.$['content-container'].scrollTop;
+          this.contentContainer_.scrollTop;
       this.selectedTab_.content._savedScrollLeft =
-          this.$['content-container'].scrollLeft;
+          this.contentContainer_.scrollLeft;
     }
   },
 
   restoreCurrentTabScrollPosition_: function() {
     if (this.selectedTab_) {
-      this.$['content-container'].scrollTop =
+      this.contentContainer_.scrollTop =
           this.selectedTab_.content._savedScrollTop || 0;
-      this.$['content-container'].scrollLeft =
+      this.contentContainer_.scrollLeft =
           this.selectedTab_.content._savedScrollLeft || 0;
     }
   },

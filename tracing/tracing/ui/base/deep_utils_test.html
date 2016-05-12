@@ -62,6 +62,9 @@ tr.b.unittest.testSuite(function() {
     var m = tr.b.findDeepElementMatching(a, 'tr-ui-b-deep-utils-test-b.x');
     assert.isDefined(m);
     assert.equal(m.tagName, 'TR-UI-B-DEEP-UTILS-TEST-B');
+
+    var m = tr.b.findDeepElementMatching(a, 'c.x');
+    assert.equal(m, b_.children[0]);
   });
 
   test('testFindDeepElementsMatching', function() {

@@ -76,9 +76,9 @@ found in the LICENSE file.
       <h1 id="tshh"></h1>
       <ul class="tabs">
         <template is="dom-repeat" items="{{tabs_}}">
-          <li id="{{item.id}}"
-             on-click="tabButtonSelectHandler_"
-             selected="{{_computeTabSelectState(selectedTab_, item)}}">
+          <li id$="{{item.id}}"
+             on-tap="tabButtonSelectHandler_"
+             selected$="{{_computeTabSelectState(selectedTab_, item)}}">
             <label>{{_computeTabLabel(item)}}</label>
           </li>
         </template>
@@ -349,8 +349,8 @@ window.TracingAnalysisTabView = Polymer({
   /**
    * Handler called when a click event happens on any of the tab buttons.
    */
-  tabButtonSelectHandler_: function(event, detail, sender) {
-    this.changeSelectedTabById_(sender.getAttribute('id'));
+  tabButtonSelectHandler_: function(event, detail) {
+    this.changeSelectedTabById_(event.currentTarget.id);
   },
 
   /**

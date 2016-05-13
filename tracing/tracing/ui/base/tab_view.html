@@ -45,7 +45,7 @@ found in the LICENSE file.
         padding: 4px 15px 1px 15px;
       }
 
-      li[selected=true] {
+      li[selected] {
         background-color: white;
         border: 1px solid rgb(163, 163, 163);
         border-bottom: none;
@@ -77,8 +77,8 @@ found in the LICENSE file.
       <ul class="tabs">
         <template is="dom-repeat" items="{{tabs_}}">
           <li id$="{{item.id}}"
-             on-tap="tabButtonSelectHandler_"
-             selected$="{{_computeTabSelectState(selectedTab_, item)}}">
+              on-tap="tabButtonSelectHandler_"
+              selected$="{{_computeTabSelectState(selectedTab_, item)}}">
             <label>{{_computeTabLabel(item)}}</label>
           </li>
         </template>

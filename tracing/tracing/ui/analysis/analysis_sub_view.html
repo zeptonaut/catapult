@@ -16,12 +16,12 @@ found in the LICENSE file.
 (function() {
   /** Catapult.tr_ui_a_sub_view_behavior */
   var tr_ui_a_sub_view_behavior = {
+    set tabLabel(label) {
+      this.setAttribute('tab-label', label);
+    },
 
-    properties: {
-      tabLabel: {
-        type: String,
-        reflectToAttribute: true
-      }
+    get tabLabel() {
+      return this.getAttribute('tab-label');
     },
 
     get requiresTallView() {

@@ -50,20 +50,20 @@ Polymer({
 
 tr.b.unittest.testSuite(function() {
   test('testFindDeepElementMatching', function() {
-    var a = document.createElement('tr-ui-b-deep-utils-test-d');
+    var d = document.createElement('tr-ui-b-deep-utils-test-d');
 
-    var m = tr.b.findDeepElementMatching(a, 'tr-ui-b-deep-utils-test-b.x');
-    assert.isDefined(m);
-    assert.equal(m.tagName, 'TR-UI-B-DEEP-UTILS-TEST-B');
+    var b = tr.b.findDeepElementMatching(d, 'tr-ui-b-deep-utils-test-b.x');
+    assert.isDefined(b);
+    assert.equal(b.tagName, 'TR-UI-B-DEEP-UTILS-TEST-B');
   });
 
   test('testFindDeepElementsMatching', function() {
-    var a = document.createElement('tr-ui-b-deep-utils-test-d');
+    var d = document.createElement('tr-ui-b-deep-utils-test-d');
 
-    var m = tr.b.findDeepElementsMatching(a, 'tr-ui-b-deep-utils-test-a.x');
-    assert.isDefined(m);
-    assert.equal(m[0].tagName, 'TR-UI-B-DEEP-UTILS-TEST-A');
-    assert.equal(m[1].tagName, 'TR-UI-B-DEEP-UTILS-TEST-A');
+    var a = tr.b.findDeepElementsMatching(d, 'tr-ui-b-deep-utils-test-a.x');
+    assert.isDefined(a);
+    assert.equal(a[0].tagName, 'TR-UI-B-DEEP-UTILS-TEST-A');
+    assert.equal(a[1].tagName, 'TR-UI-B-DEEP-UTILS-TEST-A');
   });
 });
 </script>

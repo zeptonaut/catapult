@@ -73,37 +73,19 @@ found in the LICENSE file.
         font-weight: bold;
       }
     </style>
-
     <div id="tab-strip">
-      <h1></h1>
+      <h1 id="tshh"></h1>
       <template is="dom-repeat" items="{{tabs_}}">
         <button
-            id="{{item.id }}"
+            id="{{item.id}}"
             on-click="tabButtonSelectHandler_"
             selected="{{_computeTabSelectState(selectedTab_, item)}}">
           <label>{{_computeTabLabel(item)}}</label>
         </button>
       </template>
     </div>
-
-
-<!--    <tab-strip>
-      <tab-strip-heading id="tshh">
-        <span id="tsh"></span>
-      </tab-strip-heading>
-      <tab-button
-            button-id="{{item.id }}"
-            on-click="tabButtonSelectHandler_"
-            selected="{{_computeTabSelectState(selectedTab_, item)}}">
-          <button-label>{{_computeTabLabel(item)}}</button-label>
-        </tab-button>
-      </template>
-    </tab-strip> -->
-
-    <div id=content-container'>
-        <content></content>
+    <div id='content-container'>
     </div>
-
   </template>
 </dom-module>
 <script>
@@ -156,7 +138,7 @@ window.TracingAnalysisTabView = Polymer({
   },
 
   get tabStripHeadingText() {
-    return this.$.tsh.textContent;
+    return this.$.tshh.textContent;
   },
 
   set tabStripHeadingText(text) {

@@ -15,29 +15,37 @@ found in the LICENSE file.
         box-sizing: border-box;
       }
 
-      div#tab-strip.hidden {
-        display: none;
-      }
-
       div#tab-strip {
         background-color: rgb(236, 236, 236);
         border-bottom: 1px solid #8e8e8e;
         display: flex;
-        flex: 0 0 auto;
-        flex-flow: row;
+        flex: none;
         overflow-x: auto;
         padding: 0 10px 0 10px;
         font-size: 12px;
       }
 
-      button {
-        display: block;
-        flex: 0 0 auto;
+      h1 {
+        font-size: 1em;
+        margin-top: 0;
+        margin-bottom: 0;
         padding: 4px 15px 1px 15px;
-        margin-top: 2px;
       }
 
-      button[selected=true] {
+      div#tab-strip.hidden {
+        display: none;
+      }
+
+      ul {
+        margin: 0;
+      }
+
+      li {
+        display: block;
+        padding: 4px 15px 1px 15px;
+      }
+
+      li[selected=true] {
         background-color: white;
         border: 1px solid rgb(163, 163, 163);
         border-bottom: none;
@@ -62,27 +70,19 @@ found in the LICENSE file.
       label {
         display: inline;
       }
-
-      h1#tshh {
-        display: block;
-        flex: 0 0 auto;
-        padding: 4px 15px 1px 15px;
-        margin-top: 2px;
-        margin-before: 20px;
-        margin-after: 10px;
-        font-weight: bold;
-      }
     </style>
+    <!-- TODO(charliea): Migrate selected attribute to selected class. -->
     <div id="tab-strip">
       <h1 id="tshh"></h1>
-      <template is="dom-repeat" items="{{tabs_}}">
-        <button
-            id="{{item.id}}"
-            on-click="tabButtonSelectHandler_"
-            selected="{{_computeTabSelectState(selectedTab_, item)}}">
-          <label>{{_computeTabLabel(item)}}</label>
-        </button>
-      </template>
+      <ul class="tabs">
+        <template is="dom-repeat" items="{{tabs_}}">
+          <li id="{{item.id}}"
+             on-click="tabButtonSelectHandler_"
+             selected="{{_computeTabSelectState(selectedTab_, item)}}">
+            <label>{{_computeTabLabel(item)}}</label>
+          </li>
+        </template>
+      </ul>
     </div>
     <div id='content-container'>
     </div>

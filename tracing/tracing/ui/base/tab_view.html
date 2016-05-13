@@ -44,7 +44,7 @@ found in the LICENSE file.
         padding: 3px 14px 1px 14px;
       }
 
-      div#tabs-content-container {
+      div#content-container {
         display: flex;
         flex: 1 1 auto;
         overflow: auto;
@@ -142,12 +142,8 @@ window.TracingAnalysisTabView = Polymer({
   },
 
   set tabStripHeadingText(text) {
-    var heading = Polymer.dom(this.root).querySelector('h1');
-    heading.textContent = text;
-    if (!!text)
-      heading.style.display = '';
-    else
-      heading.style.display = 'none';
+    this.$.tshh.textContent = text;
+    this.$.tshh.style.display = text ? '' : 'none';
   },
 
   get selectedTab() {
@@ -226,7 +222,6 @@ window.TracingAnalysisTabView = Polymer({
         forAttributeTabLabel: observerAttributeTabLabel
       }
     };
-    // this.tabs_.push(tabObject);
     this.push('tabs_', tabObject);
     if (child.hasAttribute('selected')) {
       // When receiving a child with the selected attribute, if we have no

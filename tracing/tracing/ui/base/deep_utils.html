@@ -12,6 +12,12 @@ found in the LICENSE file.
 
 tr.exportTo('tr.b', function() {
   function _iterateElementDeeplyImpl(element, cb, thisArg, includeElement) {
+    if (element.tagName === 'TEMPLATE')
+      // Polymer templates have a strange behavior where |this| is the same as
+      // |this.root|. This causes obvious problems during a depth-first
+      // traversal, so ignore these elements altogether.
+      return;
+
     if (includeElement && cb.call(thisArg, element))
       return true;
 

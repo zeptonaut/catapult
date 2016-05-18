@@ -164,6 +164,8 @@ tr.exportTo('tr.e.importer', function() {
         this.subtraces_.push(container.powerTraceAsString);
       if (container.systemTraceEvents)
         this.subtraces_.push(container.systemTraceEvents);
+      if (container.telemetry)
+        this.subtraces_.push(container.telemetry);
 
       // Sampling data.
       this.sampleEvents_ = container.samples;
@@ -184,6 +186,7 @@ tr.exportTo('tr.e.importer', function() {
         samples: true,
         stackFrames: true,
         systemTraceEvents: true,
+        telemetry: true,
         traceAnnotations: true,
         traceEvents: true
       };

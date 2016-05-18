@@ -54,9 +54,6 @@ tr.exportTo('tr.e.importer', function() {
     }
   }
 
-  var timestampFromUs = tr.v.Unit.timestampFromUs;
-  var maybeTimestampFromUs = tr.v.Unit.maybeTimestampFromUs;
-
   var PRODUCER = 'producer';
   var CONSUMER = 'consumer';
   var STEP = 'step';
@@ -338,7 +335,7 @@ tr.exportTo('tr.e.importer', function() {
         }
       }
 
-      var ts = timestampFromUs(event.ts);
+      var ts = this.toModelTime_(event.ts);
       ctr.series.forEach(function(series) {
         var val = event.args[series.name] ? event.args[series.name] : 0;
         series.addCounterSample(ts, val);
@@ -401,7 +398,7 @@ tr.exportTo('tr.e.importer', function() {
     processDurationEvent: function(event) {
       var thread = this.model_.getOrCreateProcess(event.pid)
         .getOrCreateThread(event.tid);
-      var ts = timestampFromUs(event.ts);
+      var ts = this.toModelTime_(event.ts);
       if (!thread.sliceGroup.isTimestampValidForBeginOrEnd(ts)) {
         this.model_.importWarning({
           type: 'duration_parse_error',
@@ -412,9 +409,9 @@ tr.exportTo('tr.e.importer', function() {
 
       if (event.ph === 'B') {
         var slice = thread.sliceGroup.beginSlice(
-            event.cat, event.name, timestampFromUs(event.ts),
+            event.cat, event.name, this.toModelTime_(event.ts),
             this.deepCopyIfNeeded_(event.args),
-            timestampFromUs(event.tts), event.argsStripped,
+            this.toModelTime_(event.tts), event.argsStripped,
             getEventColor(event));
         slice.startStackFrame = this.getStackFrameForEvent_(event);
         this.setContextsFromThread_(thread, slice);
@@ -423,13 +420,13 @@ tr.exportTo('tr.e.importer', function() {
           throw new Error('This should never happen');
 
         thread.sliceGroup.beginSlice(event.cat, event.name,
-                                     timestampFromUs(event.ts),
+                                     this.toModelTime_(event.ts),
                                      this.deepCopyIfNeeded_(event.args),
-                                     timestampFromUs(event.tts),
+                                     this.toModelTime_(event.tts),
                                      event.argsStripped,
                                      getEventColor(event));
-        var slice = thread.sliceGroup.endSlice(timestampFromUs(event.ts),
-                                   timestampFromUs(event.tts));
+        var slice = thread.sliceGroup.endSlice(this.toModelTime_(event.ts),
+                                   this.toModelTime_(event.tts));
         slice.startStackFrame = this.getStackFrameForEvent_(event);
         slice.endStackFrame = undefined;
       } else {
@@ -441,8 +438,8 @@ tr.exportTo('tr.e.importer', function() {
           return;
         }
 
-        var slice = thread.sliceGroup.endSlice(timestampFromUs(event.ts),
-                                               timestampFromUs(event.tts),
+        var slice = thread.sliceGroup.endSlice(this.toModelTime_(event.ts),
+                                               this.toModelTime_(event.tts),
                                                getEventColor(event));
         if (event.name && slice.title != event.name) {
           this.model_.importWarning({
@@ -493,10 +490,10 @@ tr.exportTo('tr.e.importer', function() {
       }
 
       var slice = thread.sliceGroup.pushCompleteSlice(event.cat, event.name,
-          timestampFromUs(event.ts),
-          maybeTimestampFromUs(event.dur),
-          maybeTimestampFromUs(event.tts),
-          maybeTimestampFromUs(event.tdur),
+          this.toModelTime_(event.ts),
+          tr.v.Unit.maybeTimestampFromUs(event.dur),
+          this.maybeToModelTime_(event.tts),
+          tr.v.Unit.maybeTimestampFromUs(event.tdur),
           this.deepCopyIfNeeded_(event.args),
           event.argsStripped,
           getEventColor(event),
@@ -623,7 +620,7 @@ tr.exportTo('tr.e.importer', function() {
       }
 
       var instantEvent = new constructor(event.cat, event.name,
-          getEventColor(event), timestampFromUs(event.ts),
+          getEventColor(event), this.toModelTime_(event.ts),
           this.deepCopyIfNeeded_(event.args));
 
       switch (instantEvent.type) {
@@ -719,7 +716,7 @@ tr.exportTo('tr.e.importer', function() {
 
       var sample = new tr.model.Sample(
           undefined /* cpu */, thread, 'V8 Sample',
-          timestampFromUs(event.ts), lastStackFrame, 1 /* weight */,
+          this.toModelTime_(event.ts), lastStackFrame, 1 /* weight */,
           this.deepCopyIfNeeded_(event.args));
       this.model_.samples.push(sample);
     },
@@ -749,7 +746,7 @@ tr.exportTo('tr.e.importer', function() {
 
       var sample = new tr.model.Sample(
           undefined, thread, 'Trace Event Sample',
-          timestampFromUs(event.ts), stackFrame, 1,
+          this.toModelTime_(event.ts), stackFrame, 1,
           this.deepCopyIfNeeded_(event.args));
       this.setContextsFromThread_(thread, sample);
       this.model_.samples.push(sample);
@@ -821,8 +818,8 @@ tr.exportTo('tr.e.importer', function() {
       }
 
       this.model_.clockSyncManager.addClockSyncMarker(
-          this.clockDomainId_, syncId, timestampFromUs(issueStartTs),
-          timestampFromUs(issueEndTs));
+          this.clockDomainId_, syncId, this.toModelTime_(issueStartTs),
+          this.toModelTime_(issueEndTs));
     },
 
     // Because the order of Jit code events and V8 samples are not guaranteed,
@@ -1185,7 +1182,7 @@ tr.exportTo('tr.e.importer', function() {
         var sample = new tr.model.Sample(
             cpu, thread,
             event.name,
-            timestampFromUs(event.ts),
+            this.toModelTime_(event.ts),
             stackFrame,
             event.weight);
         m.samples.push(sample);
@@ -1351,10 +1348,10 @@ tr.exportTo('tr.e.importer', function() {
                 events[0].event.cat,
                 name,
                 getEventColor(events[0].event),
-                timestampFromUs(events[0].event.ts),
+                this.toModelTime_(events[0].event.ts),
                 tr.b.concatenateObjects(events[0].event.args,
                                       events[events.length - 1].event.args),
-                timestampFromUs(event.ts - events[0].event.ts),
+                this.toModelTime_(event.ts - events[0].event.ts),
                 true, undefined, undefined, events[0].event.argsStripped);
             slice.startThread = events[0].thread;
             slice.endThread = asyncEventState.thread;
@@ -1408,9 +1405,9 @@ tr.exportTo('tr.e.importer', function() {
                   events[0].event.cat,
                   subName,
                   getEventColor(event, subName + j),
-                  timestampFromUs(events[startIndex].event.ts),
+                  this.toModelTime_(events[startIndex].event.ts),
                   this.deepCopyIfNeeded_(events[j].event.args),
-                  timestampFromUs(
+                  this.toModelTime_(
                     events[endIndex].event.ts - events[startIndex].event.ts),
                       undefined, undefined,
                       events[startIndex].event.argsStripped);
@@ -1538,9 +1535,9 @@ tr.exportTo('tr.e.importer', function() {
           var thread_start = undefined;
           var thread_duration = undefined;
           if (startState.event.tts && startState.event.use_async_tts) {
-            thread_start = timestampFromUs(startState.event.tts);
+            thread_start = this.toModelTime_(startState.event.tts);
             if (endState.event.tts) {
-              var thread_end = timestampFromUs(endState.event.tts);
+              var thread_end = this.toModelTime_(endState.event.tts);
               thread_duration = thread_end - thread_start;
             }
           }
@@ -1549,9 +1546,9 @@ tr.exportTo('tr.e.importer', function() {
             eventStateEntry.event.cat,
             eventStateEntry.event.name,
             getEventColor(endState.event),
-            timestampFromUs(startState.event.ts),
+            this.toModelTime_(startState.event.ts),
             sliceArgs,
-            timestampFromUs(endState.event.ts - startState.event.ts),
+            this.toModelTime_(endState.event.ts - startState.event.ts),
             isTopLevel,
             thread_start,
             thread_duration,
@@ -1644,10 +1641,10 @@ tr.exportTo('tr.e.importer', function() {
           // Support Flow API v2.
           startSlice = opt_slice;
           flowId = event.bind_id;
-          flowStartTs = timestampFromUs(event.ts + event.dur);
+          flowStartTs = this.toModelTime_(event.ts + event.dur);
         } else {
           // Support Flow API v1.
-          var ts = timestampFromUs(event.ts);
+          var ts = this.toModelTime_(event.ts);
           startSlice = thread.sliceGroup.findSliceAtTs(ts);
           if (startSlice === undefined)
             return undefined;
@@ -1678,7 +1675,7 @@ tr.exportTo('tr.e.importer', function() {
           endSlice = opt_slice;
         } else {
           // Support Flow API v1.
-          var ts = timestampFromUs(event.ts);
+          var ts = this.toModelTime_(event.ts);
           if (bindToParent) {
             endSlice = thread.sliceGroup.findSliceAtTs(ts);
           } else {
@@ -1690,7 +1687,7 @@ tr.exportTo('tr.e.importer', function() {
 
         endSlice.inFlowEvents.push(flowEvent);
         flowEvent.endSlice = endSlice;
-        flowEvent.duration = timestampFromUs(event.ts) - flowEvent.start;
+        flowEvent.duration = this.toModelTime_(event.ts) - flowEvent.start;
         flowEvent.endStackFrame = that.getStackFrameForEvent_(event);
         that.mergeArgsInto_(flowEvent.args, event.args, flowEvent.title);
         return true;
@@ -1900,7 +1897,7 @@ tr.exportTo('tr.e.importer', function() {
           });
         }
         var process = thread.parent;
-        var ts = timestampFromUs(event.ts);
+        var ts = this.toModelTime_(event.ts);
         var instance;
         if (event.ph === 'N') {
           try {
@@ -2128,7 +2125,7 @@ tr.exportTo('tr.e.importer', function() {
       for (var pid in dumpIdEvents) {
         var processEvents = dumpIdEvents[pid];
         for (var i = 0; i < processEvents.length; i++)
-          globalRange.addValue(timestampFromUs(processEvents[i].ts));
+          globalRange.addValue(this.toModelTime_(processEvents[i].ts));
       }
       if (globalRange.isEmpty)
         throw new Error('Internal error: Global memory dump without events');
@@ -2178,7 +2175,7 @@ tr.exportTo('tr.e.importer', function() {
       // Calculate the range of the process memory dump.
       var processRange = new tr.b.Range();
       for (var i = 0; i < processEvents.length; i++)
-        processRange.addValue(timestampFromUs(processEvents[i].ts));
+        processRange.addValue(this.toModelTime_(processEvents[i].ts));
       if (processRange.isEmpty)
         throw new Error('Internal error: Process memory dump without events');
 
@@ -2947,6 +2944,30 @@ tr.exportTo('tr.e.importer', function() {
           }
         }
       }
+    },
+
+    /**
+     * Converts |ts| from trace event microseconds to model time milliseconds.
+     */
+    function toModelTime_(ts) {
+      if (!this.modelTimeTransformer_) {
+        this.modelTimeTransformer_ =
+            this.model_.clockSyncManager.getModelTimeTransformer(
+                this.clockDomainId_);
+      }
+
+      return this.modelTimeTransformer_(tr.v.Unit.timestampFromUs(ts));
+    },
+
+    /**
+     * Converts |ts| from trace event microseconds to model time milliseconds,
+     * returning undefined if |ts| is undefined.
+     */
+    function maybeToModelTime(ts) {
+      if (ts === undefined)
+        return undefined;
+
+      return this.toModelTime_(ts);
     }
   };
 

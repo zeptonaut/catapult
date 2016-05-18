@@ -1598,7 +1598,7 @@ tr.exportTo('tr.e.importer', function() {
 
       var that = this;
 
-      var validateFlowEvent = function() {
+      function validateFlowEvent() {
         if (event.name === undefined) {
           that.model_.importWarning({
             type: 'flow_slice_parse_error',
@@ -1632,7 +1632,7 @@ tr.exportTo('tr.e.importer', function() {
         }
 
         return false;
-      }.bind(this);
+      }
 
       var createFlowEvent = function(thread, event, opt_slice) {
         var startSlice, flowId, flowStartTs;
@@ -1693,7 +1693,7 @@ tr.exportTo('tr.e.importer', function() {
         return true;
       }.bind(this);
 
-      var processFlowConsumer = function(flowIdToEvent, sliceGuidToEvent, event,
+      function processFlowConsumer(flowIdToEvent, sliceGuidToEvent, event,
           slice) {
         var flowEvent = flowIdToEvent[event.bind_id];
         if (flowEvent === undefined) {
@@ -1723,10 +1723,9 @@ tr.exportTo('tr.e.importer', function() {
         }
 
         return true;
-      }.bind(this);
+      }
 
-      var processFlowProducer = function(flowIdToEvent, flowStatus, event,
-          slice) {
+      function processFlowProducer(flowIdToEvent, flowStatus, event, slice) {
         if (flowIdToEvent[event.bind_id] &&
             flowStatus[event.bind_id]) {
           // Can't open the same flow again while it's still open.
@@ -1746,9 +1745,7 @@ tr.exportTo('tr.e.importer', function() {
           return false;
         }
         flowIdToEvent[event.bind_id] = flowEvent;
-
-        return;
-      }.bind(this);
+      }
 
       // Actual import.
       this.allFlowEvents_.sort(function(x, y) {
@@ -1878,7 +1875,7 @@ tr.exportTo('tr.e.importer', function() {
       if (this.allObjectEvents_.length === 0)
         return;
 
-      function processEvent(objectEventState) {
+      var processEvent = function(objectEventState) {
         var event = objectEventState.event;
         var scopedId = this.scopedIdForEvent_(event);
         var thread = objectEventState.thread;
@@ -1968,7 +1965,7 @@ tr.exportTo('tr.e.importer', function() {
 
         if (instance)
           instance.colorId = getEventColor(event, instance.typeName);
-      }
+      }.bind(this);
 
       this.allObjectEvents_.sort(function(x, y) {
         var d = x.event.ts - y.event.ts;

@@ -14,6 +14,7 @@ import traceback
 import uuid
 
 from py_trace_event import trace_event
+from py_trace_event import trace_time
 from telemetry.core import discover
 from telemetry.core import util
 from telemetry.internal.platform import tracing_agent
@@ -236,8 +237,14 @@ class TracingControllerBackend(object):
     if not self._is_tracing_controllable:
       return
     assert not trace_event.trace_is_enabled(), 'Stop tracing before collection.'
+    data = {
+        "metadata": {
+            "clock-domain": trace_time.GetClock()
+        }
+    }
     with open(self._trace_log, 'r') as fp:
-      data = ast.literal_eval(fp.read() + ']')
+      data["traceEvents"] = ast.literal_eval(fp.read() + ']')
+
     trace_data_builder.AddEventsTo(trace_data_module.TELEMETRY_PART, data)
     try:
       os.remove(self._trace_log)

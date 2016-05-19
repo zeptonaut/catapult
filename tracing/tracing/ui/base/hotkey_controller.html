@@ -7,6 +7,11 @@ found in the LICENSE file.
 <link rel="import" href="/tracing/base/guid.html">
 <link rel="import" href="/tracing/ui/base/hot_key.html">
 
+<dom-module id='tv-ui-b-hotkey-controller'>
+  <template>
+    <div></div>
+  </template>
+</dom-module>
 <script>
 'use strict';
 Polymer({
@@ -44,7 +49,7 @@ Polymer({
     if (host.parentElement)
       parentElement = host.parentElement;
     else
-      parentElement = host.parentNode.host;
+      parentElement = Polymer.dom(host).parentNode.host;
     var parentController = tr.b.getHotkeyControllerForElement(
         parentElement);
 
@@ -153,7 +158,6 @@ Polymer({
     return hotKey;
   },
 
-  // TODO(polymer): Convert to Polymer property.
   get globalMode() {
     return this.globalMode_;
   },
@@ -205,8 +209,8 @@ Polymer({
         return this.parentElement;
 
       var node = this;
-      while (node.parentNode) {
-        node = node.parentNode;
+      while (Polymer.dom(node).parentNode) {
+        node = Polymer.dom(node).parentNode;
       }
       return node.host;
     }
@@ -285,8 +289,8 @@ tr.exportTo('tr.b', function() {
 
   function findHost(initialNode) {
     var node = initialNode;
-    while (node.parentNode) {
-      node = node.parentNode;
+    while (Polymer.dom(node).parentNode) {
+      node = Polymer.dom(node).parentNode;
     }
     return node.host;
   }

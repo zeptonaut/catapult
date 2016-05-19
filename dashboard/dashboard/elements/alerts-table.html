@@ -262,7 +262,7 @@ found in the LICENSE file.
       }
     </style>
     <div>
-      <triage-dialog id="triage" on-triaged="onTriaged" xsrfToken="{{xsrfToken}}">
+      <triage-dialog id="triage" on-triaged="onTriaged" xsrf-token="{{xsrfToken}}">
       </triage-dialog>
       <paper-button raised id="file-bug-button" on-click="showTriageDialog">
         Triage
@@ -302,44 +302,44 @@ found in the LICENSE file.
 
           <td>
             <a class="kd-button counter"
-               expanded$="{{expanded}}"
+               expanded$="{{item.expanded}}"
                on-click="onExpandGroupButtonClicked"
-               hidden$="{{!computeIsPlural(size))}}">{{size}}</a>
+               hidden$="{{!computeIsPlural(item.size))}}">{{item.size}}</a>
           </td>
           <td>
             <input type="checkbox"
-                   id="{{key}}"
-                   checked="{{selected}}"
+                   id="{{item.key}}"
+                   checked="{{item.selected::change}}"
                    on-change="onCheckboxChange">
           </td>
 
           <td>
-            <a href$="{{dashboard_link}}" class="graph-link" target="_blank">
+            <a href$="{{item.dashboard_link}}" class="graph-link" target="_blank">
               📈  <!-- chart with upwards trend character U+1F4C8 -->
             </a>
           </td>
 
-          <td hidden$="{{hide_bug_id}}">
-            <bug-info-span bugId="{{bug_id}}"
-                           key="{{key}}"
-                           recovered?="{{recovered}}"
-                           xsrfToken="{{xsrfToken}}"
+          <td hidden$="{{item.hide_bug_id}}">
+            <bug-info-span bug-id="{{item.bug_id}}"
+                           key="{{item.key}}"
+                           recovered$="{{item.recovered}}"
+                           xsrf-token="{{xsrfToken}}"
                            on-untriaged="onUntriaged">
             </bug-info-span>
-            <bisect-status hidden$="{{!bug_id}}"
-                           status="{{bisect_status}}">
+            <bisect-status hidden$="{{!item.bug_id}}"
+                           status="{{item.bisect_status}}">
             </bisect-status>
           </td>
           <td class="revision_range">
-            <revision-range start={{start_revision}} end="{{end_revision}}"></revision-range>
+            <revision-range start={{item.start_revision}} end="{{item.end_revision}}"></revision-range>
           </td>
-          <td class="master"><label>{{master}}</label><label hidden$="{{computeAbsentOrExpanded(additionColumnValues.master, expanded)}}">...</label></td>
-          <td class="bot"><label>{{bot}}</label><label hidden$="{{computeAbsentOrExpanded(additionColumnValues.bot, expanded)}}">...</label></td>
-          <td class="testsuite"><label>{{testsuite}}</label><label hidden$="{{computeAbsentOrExpanded(additionColumnValues.testsuite, expanded)}}">...</label></td>
-          <td class="test"><label>{{test}}</label><label hidden$="{{computeAbsentOrExpanded(additionColumnValues.test, expanded)}}">...</label></td>
+          <td class="master"><label>{{item.master}}</label><label hidden$="{{computeAbsentOrExpanded(item.additionColumnValues.master, expanded)}}">...</label></td>
+          <td class="bot"><label>{{item.bot}}</label><label hidden$="{{computeAbsentOrExpanded(item.additionColumnValues.bot, expanded)}}">...</label></td>
+          <td class="testsuite"><label>{{item.testsuite}}</label><label hidden$="{{computeAbsentOrExpanded(item.additionColumnValues.testsuite, expanded)}}">...</label></td>
+          <td class="test"><label>{{item.test}}</label><label hidden$="{{computeAbsentOrExpanded(item.additionColumnValues.test, expanded)}}">...</label></td>
 
-          <template is="dom-repeat" items="{{extraColumns}}">
-            <td class="{{item.key}}"><label>{{item.value}}</td>
+          <template is="dom-repeat" items="{{extraColumns}}" as="column" index-as="colnum">
+            <td class="{{column.key}}"><label>{{computeExtraColumnValue(alertList.*, index, column.key)}}</td>
           </template>
         </tr>
       </template>
@@ -368,6 +368,28 @@ found in the LICENSE file.
 
       is: 'alerts-table',
       properties: {
+        checkedAlerts: {
+          type: Array,
+          value: () => []
+        },
+
+        alertList: {
+          type: Array,
+          notify: true,
+          observer: 'alertListChanged',
+          value: () => []
+        },
+
+        extraColumns: {
+          type: Array,
+          notify: true,
+          value: () => []
+        },
+
+        xsrfToken: {
+          type: String
+        },
+
         /**
          * The field to sort by. Note that this will be both the id of a th
          * element in the table, and a property of an item in the alert list.
@@ -409,22 +431,17 @@ found in the LICENSE file.
        * Custom element lifecycle callback, called once this element is ready.
        */
       ready: function() {
-        this.checkedAlerts = [];
       },
 
       computeAbsentOrExpanded: (prop, exanded) => !prop || expanded,
 
       computeIsPlural: n => n > 1,
 
-      isRecursiveChange: function() {
-        if (this.isRecursingIntoChange) {
-          return true;
-        }
-        this.isRecursingIntoChange = true;
-        setTimeout(function() {
-          this.isRecursingIntoChange = false;
-        }.bind(this), 10);
-        return false;
+      computeExtraColumnValue: function(change, index, key) {
+        // Unused 'change' argument is used to clarify that this has a
+        // dependency on alertList. For more details, see
+        // https://www.polymer-project.org/1.0/docs/devguide/data-binding.html#array-binding
+        return this.get('alertList.' + index)[key];
       },
 
       /**
@@ -434,46 +451,15 @@ found in the LICENSE file.
       alertListChanged: function() {
         // Some calls to alertListChanged can change the alert list.
         // If that happens, don't do anything.
-        if (this.isRecursiveChange()) {
+        if (this.recursingAlertListChanged) {
           return;
         }
+        this.recursingAlertListChanged = true;
         this.initRowsBasedOnQueryParameters();
         this.showAlertsGrouped();
         this.updateBugColumn();
-        if (this.extraColumns) {
-          this.prepareExtraColumnsForHeader();
-          this.prepareExtraColumnsForBodyRows();
-        }
         this.maybeDisableButtons();
-      },
-
-      /**
-       * Sets the columnHeaderClicked function for items in this.extraColumns.
-       * This is done so that this function is available for binding in the
-       * template above, so that the table can be sorted by any of the extra
-       * columns.
-       */
-      prepareExtraColumnsForHeader: function() {
-        // Set the columnHeaderClicked so it can be used in in the repeat
-        // template above in the table header.
-        this.extraColumns.forEach(function(column) {
-          column.columnHeaderClicked = this.columnHeaderClicked.bind(this);
-          this.columnHeaderClicked.bind(this);
-        }, this);
-      },
-
-      /**
-       * Sets an extraColumns property on each of the items in this.alertList.
-       * This is done so that it can be used in in the repeat template above.
-       */
-      prepareExtraColumnsForBodyRows: function() {
-        // Set the columnHeaderClicked so it can be used in in the repeat
-        // template above in the table header.
-        this.alertList.forEach(function(alert) {
-          alert.extraColumns = this.extraColumns.map(function(column) {
-            return {key: column.key, value: alert[column.key]};
-          });
-        }, this);
+        this.recursingAlertListChanged = false;
       },
 
       /**
@@ -508,7 +494,7 @@ found in the LICENSE file.
           orderedAlertList.push.apply(
               orderedAlertList, groupMap[alertOrder[i]]);
         }
-        this.alertList = orderedAlertList;
+        this.set('alertList', orderedAlertList);
         this.addEllipsis();
       },
 
@@ -548,8 +534,9 @@ found in the LICENSE file.
       /**
        * Toggles expansion of a group of alerts.
        */
-      onExpandGroupButtonClicked: function(event, detail, sender) {
-        var row = Polymer.dom(Polymer.dom(sender).parentNode).parentNode;
+      onExpandGroupButtonClicked: function(event, detail) {
+        var row =
+            Polymer.dom(Polymer.dom(event.currentTarget).parentNode).parentNode;
         var alertIndex = row.rowIndex - 1;
         var alert = this.alertList[alertIndex];
         var isExpand = !alert.expanded;
@@ -647,9 +634,8 @@ found in the LICENSE file.
        * alert-remove-box when the user removes a bug from an alert.
        * @param {Event} event The event object.
        * @param {Object} detail Parameters sent with the event.
-       * @param {Element} sender The element that sent the event.
        */
-      onUntriaged: function(event, detail, sender) {
+      onUntriaged: function(event, detail) {
         var key = detail.key;
         for (var i = 0; i < this.alertList.length; i++) {
           if (this.alertList[i]['key'] == key) {
@@ -661,16 +647,16 @@ found in the LICENSE file.
       /**
        * Either unchecks or checks all alerts.
        */
-      onHeaderCheckboxChange: function(event, detail, sender) {
+      onHeaderCheckboxChange: function(event, detail) {
         for (var i = 0; i < this.alertList.length; i++) {
           var alert = this.alertList[i];
-          if (event.target.checked) {
+          if (event.currentTarget.checked) {
             if (!alert.hideRow) {
-              alert.selected = true;
+              this.set('alertList.' + i + '.selected', true);
               this.updateGroupCheckboxes(alert, i, true);
             }
           } else {
-            alert.selected = false;
+            this.set('alertList.' + i + '.selected', false);
           }
         }
         this.onCheckboxChange();
@@ -690,10 +676,9 @@ found in the LICENSE file.
        * Callback for the click event for a column header.
        * @param {Event} event Clicked event.
        * @param {Object} detail Detail Object.
-       * @param {Element} sender Element that invoked the event.
        */
-      columnHeaderClicked: function(event, detail, sender) {
-        this.sortBy = sender.id;
+      columnHeaderClicked: function(event, detail) {
+        this.sortBy = event.currentTarget.id;
         var newDirection = 'down';
         // Because the <th> element may have been added based on an entry in
         // this.extraColumns, this.$[this.sortBy] may not work.
@@ -794,6 +779,12 @@ found in the LICENSE file.
           }
         });
         this.alertList = sortedAlertList;
+        for (var i = 0; i < this.extraColumns.length; i++) {
+          for (var j = 0; j < this.alertList.length; j++) {
+            this.set('alertList.' + j + '.' + this.extraColumns[i].key,
+                     this.alertList[j][this.extraColumns[i].key]);
+          }
+        }
         this.updateHeaders();
       },
 
@@ -877,7 +868,7 @@ found in the LICENSE file.
       /**
        * Handles shift-click selecting checkboxes and selecting rows in group.
        */
-      onRowClicked: function(event, detail, sender) {
+      onRowClicked: function(event, detail) {
         if (event.shiftKey && this.previousCheckboxId &&
             this.currentCheckboxId) {
           if (this.previousCheckboxId == this.currentCheckboxId) {
@@ -931,16 +922,16 @@ found in the LICENSE file.
        * Event handler for the change event of any of the checkboxes for any
        * alert in the table.
        */
-      onCheckboxChange: function(event, detail, sender) {
-        if (sender) {
+      onCheckboxChange: function(event, detail) {
+        if (event && event.currentTarget) {
           // Checks group member rows.
-          var alertIndex = Polymer.dom(
-              Polymer.dom(sender).parentNode).parentNode.rowIndex - 1;
+          var alertIndex = Polymer.dom(Polymer.dom(
+              event.currentTarget).parentNode).parentNode.rowIndex - 1;
           var alert = this.alertList[alertIndex];
           this.updateGroupCheckboxes(alert, alertIndex, alert.selected);
 
           this.previousCheckboxId = this.currentCheckboxId;
-          this.currentCheckboxId = sender.id;
+          this.currentCheckboxId = event.currentTarget.id;
         }
         // Update the list of checked alerts.
         this.checkedAlerts = this.alertList.filter(function(alertRow) {

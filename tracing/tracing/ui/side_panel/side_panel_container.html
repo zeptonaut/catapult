@@ -6,8 +6,8 @@ found in the LICENSE file.
 -->
 
 <link rel="import" href="/tracing/base/range.html">
-<link rel='import' href='/tracing/ui/base/polymer_utils.html'>
 <link rel="import" href="/tracing/ui/side_panel/side_panel.html">
+<link rel="import" href="/tracing/ui/side_panel/side_panel_registry.html">
 
 <dom-module id='tr-ui-side-panel-container'>
   <template>
@@ -149,20 +149,20 @@ Polymer({
       throw new Error('Cannot activate panel: does not support this model');
 
     if (this.activePanelType) {
-      this.getLabelElementForPanelType_(
-          this.activePanelType).removeAttribute('selected');
+      Polymer.dom(this.getLabelElementForPanelType_(
+          this.activePanelType)).removeAttribute('selected');
     }
     this.activePanelContainer_.textContent = '';
 
     if (panelType === undefined) {
-      this.removeAttribute('expanded');
+      Polymer.dom(this).removeAttribute('expanded');
       this.activePanelType_ = undefined;
       return;
     }
 
-    this.getLabelElementForPanelType_(panelType).
+    Polymer.dom(this.getLabelElementForPanelType_(panelType)).
         setAttribute('selected', true);
-    this.setAttribute('expanded', true);
+    Polymer.dom(this).setAttribute('expanded', true);
 
     Polymer.dom(this.activePanelContainer_).appendChild(panel);
     panel.rangeOfInterest = this.rangeOfInterest_;
@@ -193,11 +193,11 @@ Polymer({
     this.tabStrip_.textContent = '';
     var supportedPanelTypes = [];
 
-    var panelTypes =
-        tr.ui.b.getPolymerElementsThatSubclass('tr-ui-side-panel');
-    panelTypes.forEach(function(panelType) {
+    for (var panelTypeInfo of
+        tr.ui.side_panel.SidePanelRegistry.getAllRegisteredTypeInfos()) {
       var labelEl = document.createElement('tab-strip-label');
-      var panel = document.createElement(panelType);
+      var panel = panelTypeInfo.constructor();
+      var panelType = panel.tagName;
 
       labelEl.textContent = panel.textLabel;
       labelEl.panelType = panelType;
@@ -205,7 +205,7 @@ Polymer({
       var supported = panel.supportsModel(this.model);
       if (this.model && supported.supported) {
         supportedPanelTypes.push(panelType);
-        labelEl.setAttribute('enabled', true);
+        Polymer.dom(labelEl).setAttribute('enabled', true);
         labelEl.addEventListener('click', function() {
           this.activePanelType =
               this.activePanelType === panelType ? undefined : panelType;
@@ -216,16 +216,16 @@ Polymer({
         labelEl.style.display = 'none';
       }
       Polymer.dom(this.tabStrip_).appendChild(labelEl);
-    }, this);
+    }
 
     // Restore the active panel, or collapse
     if (previouslyActivePanelType &&
         supportedPanelTypes.indexOf(previouslyActivePanelType) != -1) {
       this.activePanelType = previouslyActivePanelType;
-      this.setAttribute('expanded', true);
+      Polymer.dom(this).setAttribute('expanded', true);
     } else {
       this.activePanelContainer_.textContent = '';
-      this.removeAttribute('expanded');
+      Polymer.dom(this).removeAttribute('expanded');
     }
   },
 

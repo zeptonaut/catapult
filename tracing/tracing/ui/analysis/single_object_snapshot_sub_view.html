@@ -56,7 +56,6 @@ Polymer({
     this.currentSelection_ = undefined;
   },
 
-  // TODO(polymer): Convert to Polymer property.
   get requiresTallView() {
     if (this.children.length === 0)
       return false;
@@ -96,7 +95,7 @@ Polymer({
     this.textContent = '';
 
     var titleEl = document.createElement('div');
-    titleEl.classList.add('title');
+    Polymer.dom(titleEl).classList.add('title');
     Polymer.dom(titleEl).appendChild(document.createTextNode('Snapshot of '));
     Polymer.dom(this).appendChild(titleEl);
 

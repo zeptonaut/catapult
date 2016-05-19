@@ -15,7 +15,7 @@ found in the LICENSE file.
         box-sizing: border-box;
       }
 
-      tab-strip[tabs-hidden] {
+      tab-strip.hidden {
         display: none;
       }
 
@@ -143,7 +143,6 @@ window.TracingAnalysisTabView = Polymer({
     this.childrenObserver_.observe(this, { childList: 'true' });
   },
 
-  // TODO(polymer): Convert to Polymer property.
   get tabStripHeadingText() {
     return this.$.tsh.textContent;
   },
@@ -196,17 +195,17 @@ window.TracingAnalysisTabView = Polymer({
   },
 
   get tabsHidden() {
-    var ts = this.shadowRoot.querySelector('tab-strip');
-    return ts.hasAttribute('tabs-hidden');
+    var ts = Polymer.dom(this.root).querySelector('tab-strip');
+    return ts.classList.contains('hidden');
   },
 
   set tabsHidden(tabsHidden) {
     tabsHidden = !!tabsHidden;
-    var ts = this.shadowRoot.querySelector('tab-strip');
+    var ts = Polymer.dom(this.root).querySelector('tab-strip');
     if (tabsHidden)
-      ts.setAttribute('tabs-hidden', true);
+      ts.classList.add('hidden');
     else
-      ts.removeAttribute('tabs-hidden');
+      ts.classList.remove('hidden');
   },
 
   get tabs() {
@@ -239,7 +238,7 @@ window.TracingAnalysisTabView = Polymer({
       // selected tab, mark the child as the selected tab, otherwise keep
       // the previous selection.
       if (this.selectedTab_)
-        child.removeAttribute('selected');
+        Polymer.dom(child).removeAttribute('selected');
       else
         this.setSelectedTabById_(tabObject.id);
     }
@@ -295,7 +294,7 @@ window.TracingAnalysisTabView = Polymer({
           this.clearSelectedTab_();
           this.fire('selected-tab-change');
         }
-        child.removeAttribute('selected');
+        Polymer.dom(child).removeAttribute('selected');
         delete child.selected;
         // Remove the observer since we no longer care about this child.
         this.splice('tabs_', i, 1);
@@ -360,8 +359,8 @@ window.TracingAnalysisTabView = Polymer({
   /**
    * Handler called when a click event happens on any of the tab buttons.
    */
-  tabButtonSelectHandler_: function(event, detail, sender) {
-    this.changeSelectedTabById_(sender.getAttribute('button-id'));
+  tabButtonSelectHandler_: function(event) {
+    this.changeSelectedTabById_(event.currentTarget.id);
   },
 
   /**
@@ -389,7 +388,7 @@ window.TracingAnalysisTabView = Polymer({
     this.selectedTab_ = this.tabs_[id];
     // Disconnect observer while we mutate the child.
     this.selectedTab_.observers.forAttributeSelected.disconnect();
-    this.selectedTab_.content.setAttribute('selected', 'selected');
+    Polymer.dom(this.selectedTab_.content).setAttribute('selected', 'selected');
     // Reconnect the observer to watch for changes in the future.
     this.selectedTab_.observers.forAttributeSelected.observe(
         this.selectedTab_.content, { attributeFilter: ['selected'] });
@@ -427,7 +426,7 @@ window.TracingAnalysisTabView = Polymer({
     if (this.selectedTab_) {
       // Disconnect observer while we mutate the child.
       this.selectedTab_.observers.forAttributeSelected.disconnect();
-      this.selectedTab_.content.removeAttribute('selected');
+      Polymer.dom(this.selectedTab_.content).removeAttribute('selected');
       // Reconnect the observer to watch for changes in the future.
       this.selectedTab_.observers.forAttributeSelected.observe(
           this.selectedTab_.content, { attributeFilter: ['selected'] });

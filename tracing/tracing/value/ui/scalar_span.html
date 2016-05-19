@@ -6,7 +6,6 @@ found in the LICENSE file.
 -->
 
 <link rel="import" href="/tracing/ui/base/deep_utils.html">
-<link rel="import" href="/tracing/ui/base/polymer_utils.html">
 <link rel="import" href="/tracing/value/numeric.html">
 <link rel="import" href="/tracing/value/unit.html">
 
@@ -151,14 +150,14 @@ Polymer({
   },
 
   get rightAlign() {
-    return this.$.content.classList.contains('right-align');
+    return Polymer.dom(this.$.content).classList.contains('right-align');
   },
 
   set rightAlign(rightAlign) {
     if (rightAlign)
-      this.$.content.classList.add('right-align');
+      Polymer.dom(this.$.content).classList.add('right-align');
     else
-      this.$.content.classList.remove('right-align');
+      Polymer.dom(this.$.content).classList.remove('right-align');
   },
 
   updateSparkline_: function() {

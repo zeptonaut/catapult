@@ -7,7 +7,7 @@ found in the LICENSE file.
 
 <link rel="import" href="/tracing/ui/base/ui.html">
 
-<dom-module id=="tr-ui-b-drag-handle">
+<dom-module id="tr-ui-b-drag-handle">
   <template>
     <style>
     :host {
@@ -44,6 +44,7 @@ found in the LICENSE file.
       z-index: 10;
     }
     </style>
+    <div></div>
   </template>
 </dom-module>
 <script>
@@ -66,7 +67,6 @@ Polymer({
     this.targetSizesByModeKey_ = {};
   },
 
-  // TODO(polymer): Convert to Polymer property.
   get modeKey_() {
     return this.target_.className == '' ? '.' : this.target_.className;
   },

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<!--
+Copyright 2016 The Chromium Authors. All rights reserved.
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+-->
+
+<!--
+@fileoverview TODO(charliea): Write this
+-->
+<dom-module id='tr-ui-a-tab-view2'>
+  <template>
+    <ul id="tabs">
+    </ul>
+    <content>
+    </content>
+  </template>
+</dom-module>
+<script>
+'use strict';
+
+Polymer({
+  is: 'tr-ui-a-tab-view2',
+
+  properties: {
+    subViews_: {
+      type: Array,
+      value: []
+    },
+    selectedSubView_: {
+      type: Object,
+    }
+  },
+
+  ready: function() {
+    this.childObserver_ = Polymer.dom(this).observeNodes(
+      this.onChildrenChanged_);
+  },
+
+  addSubView: function(subView) {
+    this.push('subViews_', subView);
+
+    if (!this.get('selectedSubView_'))
+      this.set('selectedSubView_', subView);
+  },
+
+  onChildrenChanged_: function(changeInfo) {
+    // TODO(charliea): I'm not a big fan of this 'dual representation' of the
+    // tabs as both children of content and as a property. Is there any way to
+    // get around this?
+    for (var node of changeInfo.addedNodes) {
+      if (node.behaviors.indexOf(Catapult.tr_ui_a_sub_view_behavior) < 0){
+        throw new Error('Analysis tab view can only contain analysis sub ' +
+            'views as children.');
+      }
+    }
+  }
+});
+</script>

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<!--
+Copyright 2016 The Chromium Authors. All rights reserved.
+Use of this source code is governed by a BSD-style license that can be
+found in the LICENSE file.
+-->
+
+<link rel="import" href="/tracing/model/event_set.html">
+<link rel="import" href="/tracing/model/model.html">
+<link rel="import" href="/tracing/model/power_series.html">
+<link rel="import" href="/tracing/ui/analysis/multi_power_sample_sub_view.html">
+<link rel="import" href="/tracing/ui/base/tab_view2.html">
+
+<script>
+'use strict';
+
+tr.b.unittest.testSuite(function() {
+  function createPowerSampleSubView() {
+    var model = new tr.Model();
+    var series = new tr.model.PowerSeries(model.device);
+
+    model.device.vSyncTimestamps = [0];
+    series.addPowerSample(1, 1);
+    series.addPowerSample(2, 2);
+    series.addPowerSample(3, 3);
+    series.addPowerSample(4, 2);
+
+    var view = document.createElement('tr-ui-a-multi-power-sample-sub-view');
+    view.selection = new tr.model.EventSet(series.samples);
+
+    return view;
+  }
+
+  test('instantiate', function() {
+    var tabView = document.createElement('tr-ui-a-tab-view2');
+
+    var powerSampleSubView = createPowerSampleSubView();
+    Polymer.dom(tabView).appendChild(powerSampleSubView);
+    this.addHTMLOutput(tabView);
+  });
+});
+</script>

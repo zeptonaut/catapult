@@ -5,7 +5,6 @@ Use of this source code is governed by a BSD-style license that can be
 found in the LICENSE file.
 -->
 
-<link rel="import" href="/tracing/base/iteration_helpers.html">
 <link rel="import" href="/tracing/model/event_set.html">
 <link rel="import" href="/tracing/ui/analysis/alert_sub_view.html">
 <link rel="import" href="/tracing/ui/analysis/analysis_sub_view.html">
@@ -79,27 +78,58 @@ using custom elements specialized for different event types.
 (function() {
   var EventRegistry = tr.model.EventRegistry;
 
+  function getTabLabel(selection) {
+    if (!selection.length)
+      return 'Nothing selected. Tap stuff.';
+    else if (selection.length === 1)
+      return '1 item selected.';
+    return selection.length + ' items selected.';
+  }
+
+  function getLabelForSelection(eventTypeName, subSelection) {
+    var camelLabel = subSelection.length === 1 ?
+        EventRegistry.getUserFriendlySingularName(eventTypeName) :
+        EventRegistry.getUserFriendlyPluralName(eventTypeName);
+    return camelLabel + ' (' + subSelection.length + ')';
+  }
+
+  function getTagNameForType(eventTypeName) {
+    var eventTypeInfo =
+        EventRegistry.getEventTypeInfoByTypeName(eventTypeName);
+    return subSelection.length === 1 ?
+        eventTypeInfo.metadata.singleViewElementName :
+        eventTypeInfo.metadata.multiViewElementName;
+  }
+
+  function createSubViewForSelection(eventTypeName, selection) {
+    var subView = document.createElement(getTagNameForType(eventTypeName));
+
+    // Unregistered elements with valid names (i.e. names that have a hyphen
+    // in them) that are instantiated inherit from HTMLElement. Unregistered
+    // elements with invalid names inherit from HTMLUnknownelement.
+    if (subView.constructor === HTMLElement ||
+        subView.constructor === HTMLUnknownElement)
+      throw new Error('Element not registered: ' + tagName);
+
+    subView.tabLabel = getLabelForSelection(eventTypeName, selection);
+    subView.selection = selection;
+    return subView;
+  }
+
   Polymer({
     is: 'tr-ui-a-analysis-view',
 
     ready: function() {
       this.tabView_ = document.createElement('tr-ui-a-tab-view2');
       this.tabView_.addEventListener(
-          'selected-tab-change', onSelectedTabChanged_);
+          'selected-tab-change', this.onSelectedSubViewChanged_);
 
       Polymer.dom(this).appendChild(this.tabView_);
       this.brushingStateController_ = undefined;
-      this.onSelectedTabChange_ = this.onSelectedTabChange_.bind(this);
-      this.onSelectionChanged_ = this.onSelectionChanged_.bind(this);
-
-      this.lastSeenSelection_ = new tr.model.EventSet();
     },
 
     set tallMode(value) {
-      if (value)
-        Polymer.dom(this).classList.add('tall-mode');
-      else
-        Polymer.dom(this).classList.remove('tall-mode');
+      Polymer.dom(this).classList.toggle('tall-mode', value);
     },
 
     get tallMode() {
@@ -119,6 +149,7 @@ using custom elements specialized for different event types.
         this.brushingStateController_.removeEventListener(
             'change', this.onSelectionChanged_);
       }
+      // TODO(charliea): Do we need to .bind(this) here?
       this.brushingStateController_ = brushingStateController;
       if (this.brushingStateController) {
         this.brushingStateController_.addEventListener(
@@ -134,75 +165,35 @@ using custom elements specialized for different event types.
     onSelectionChanged_: function(e) {
       var selection = this.brushingStateController_.selection;
 
-      if (this.lastSeenSelection_.equals(selection))
-        return;
-      this.lastSeenSelection_ = selection;
-
       this.tallMode = false;
-      while (Polymer.dom(this.tabView).children.length) {
-        Polymer.dom(this.tabView).removeChild(
-            Polymer.dom(this.tabView.firstChild));
-      }
+      this.tabView_.clearSubViews();
 
-      if (!selection.length)
-        this.tabView.label = 'Nothing selected. Tap stuff.';
-      else if (selection.length === 1)
-        this.tabView.label = '1 item selected.';
-      else
-        this.tabView.label = selection.length + ' items selected.';
-
+      this.tabView.label = getTabLabel(selection);
       var eventsByBaseTypeName = selection.getEventsOrganizedByBaseType(true);
       for (var eventTypeName in eventsByBaseTypeName) {
-        var subView = this.createSubViewForSelection_(
+        var subView = createSubViewForSelection(
             eventTypeName, eventsByBaseTypeName[eventTypeName]);
         Polymer.dom(this.tabView_).appendChild(subView);
       }
-
-      this.tabView_.addEventListener(
-        'selected-tab-change', this.onSelectedTabChange_);
     },
 
-    createSubViewForSelection_: function(eventTypeName, subSelection) {
-      var eventTypeInfo =
-          EventRegistry.getEventTypeInfoByTypeName(eventTypeName);
-      var tagName = subSelection.length === 1 ?
-          eventTypeInfo.metadata.singleViewElementName :
-          eventTypeInfo.metadata.multiViewElementName;
-
-      var subView = document.createElement(tagName);
-      // Unregistered elements with valid names (i.e. names that have a hyphen
-      // in them) that are instantiated inherit from HTMLElement. Unregistered
-      // elements with invalid names inherit from HTMLUnknownelement.
-      if (subView.constructor === HTMLElement ||
-          subView.constructor === HTMLUnknownElement)
-        throw new Error('Element not registered: ' + tagName);
-
-      subView.tabLabel = getLabelForSelection_(eventTypeName, subSelection);
-      subView.selection = subSelection;
-      return subView;
-    },
-
-    getLabelForSelection_: function(eventTypeName, subSelection) {
-      var camelLabel = subSelection.length === 1 ?
-          EventRegistry.getUserFriendlySingularName(eventTypeName) :
-          EventRegistry.getUserFriendlyPluralName(eventTypeName);
-      return camelLabel + ' (' + subSelection.length + ')';
-    },
-
-    onSelectedTabChanged_: function() {
+    onSelectedSubViewChanged_: function() {
       var brushingStateController = this.brushingStateController_;
-      if (this.tabView_.selectedTab) {
-        var selectedTab = this.tabView_.selectedTab;
-        this.tallMode = selectedTab.requiresTallView;
-        if (brushingStateController) {
-          var rlth = selectedTab.relatedEventsToHighlight;
-          brushingStateController.changeAnalysisViewRelatedEvents(rlth);
-        }
-      } else {
+      var selectedSubView = this.tabView_.selectedSubView;
+
+      if (!selectedSubView) {
         this.tallMode = false;
-        if (brushingStateController)
-          brushingStateController.changeAnalysisViewRelatedEvents(undefined);
+        this.maybeChangeRelatedEvents(undefined);
+        return;
       }
+
+      this.tallMode = selectedSubView.requiresTallView;
+      this.maybeChangeRelatedEvents_(selectedSubView.relatedEventsToHighlight);
+    },
+
+    maybeChangeRelatedEvents_: function(events) {
+      if (this.brushingStateController)
+        this.brushingStateController.changeAnalysisViewRelatedEvents(events);
     }
   });
 })();

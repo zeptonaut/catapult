@@ -97,6 +97,8 @@ Polymer({
 
     if (subView)
       Polymer.dom(subView).setAttribute('selected', 'true');
+
+    this.fire('selected-tab-change');
   },
 
   clearSubViews: function() {
@@ -107,7 +109,7 @@ Polymer({
     // TODO(charliea): Right now, we have to use this observer because there's a
     // sort of dual representation of subviews as both children in our light DOM
     // and as elements in this.subViews_. This seems wrong, and Polymer probably
-    // has a way to avoid this.
+    // has a way to avoid this, but I don't know what it is.
     for (var node of changeInfo.addedNodes) {
       if (!node.behaviors ||
           node.behaviors.indexOf(Catapult.tr_ui_a_sub_view_behavior) < 0) {
@@ -149,7 +151,7 @@ Polymer({
   onTabClicked_: function(event) {
     this.selectedSubView = event.model.item;
 
-    this.fire('selected-tab-change');
+
   }
 });
 </script>

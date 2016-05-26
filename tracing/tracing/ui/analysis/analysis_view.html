@@ -46,7 +46,7 @@ found in the LICENSE file.
       href="/tracing/ui/analysis/single_thread_time_slice_sub_view.html">
 <link rel="import"
     href="/tracing/ui/analysis/single_user_expectation_sub_view.html">
-<link rel="import" href="/tracing/ui/base/tab_view.html">
+<link rel="import" href="/tracing/ui/base/tab_view2.html">
 
 <!--
 @fileoverview A component used to display an analysis of a selection,
@@ -83,8 +83,10 @@ using custom elements specialized for different event types.
     is: 'tr-ui-a-analysis-view',
 
     ready: function() {
-      this.tabView_ = document.createElement('tr-ui-a-tab-view');
-      this.tabView_.style.flex = '1 1 auto';
+      this.tabView_ = document.createElement('tr-ui-a-tab-view2');
+      this.tabView_.addEventListener(
+          'selected-tab-change', onSelectedTabChanged_);
+
       Polymer.dom(this).appendChild(this.tabView_);
       this.brushingStateController_ = undefined;
       this.onSelectedTabChange_ = this.onSelectedTabChange_.bind(this);
@@ -132,116 +134,62 @@ using custom elements specialized for different event types.
     onSelectionChanged_: function(e) {
       var selection = this.brushingStateController_.selection;
 
-      var selectionHasSameValue = this.lastSeenSelection_.equals(selection);
-      this.lastSeenSelection_ = selection;
-      if (selectionHasSameValue)
+      if (this.lastSeenSelection_.equals(selection))
         return;
-
-      var lastSelectedTabTagName;
-      var lastSelectedTabTypeName;
-      if (this.tabView_.selectedTab) {
-        lastSelectedTabTagName = this.tabView_.selectedTab.tagName;
-        lastSelectedTabTypeName = this.tabView_.selectedTab._eventTypeName;
-      }
+      this.lastSeenSelection_ = selection;
 
       this.tallMode = false;
-
-      var previouslySelectedTab = this.tabView_.selectedTab;
-      this.tabView_.removeEventListener(
-        'selected-tab-change', this.onSelectedTabChange_);
-
-      var previousSubViews = {};
-      for (var i = 0; i < Polymer.dom(this.tabView_).children.length; i++) {
-        var previousSubView = Polymer.dom(this.tabView_).children[i];
-        previousSubViews[previousSubView._eventTypeName] = previousSubView;
+      while (Polymer.dom(this.tabView).children.length) {
+        Polymer.dom(this.tabView).removeChild(
+            Polymer.dom(this.tabView.firstChild));
       }
 
-      this.tabView_.saveTabStates();
-      Polymer.dom(this.tabView_).textContent = '';
-      if (selection.length == 0) {
-        this.tabView_.tabStripHeadingText = 'Nothing selected. Tap stuff.';
-      } else if (selection.length == 1) {
-        this.tabView_.tabStripHeadingText = '1 item selected: ';
-      } else {
-        this.tabView_.tabStripHeadingText = selection.length +
-            ' items selected: ';
-      }
+      if (!selection.length)
+        this.tabView.label = 'Nothing selected. Tap stuff.';
+      else if (selection.length === 1)
+        this.tabView.label = '1 item selected.';
+      else
+        this.tabView.label = selection.length + ' items selected.';
 
       var eventsByBaseTypeName = selection.getEventsOrganizedByBaseType(true);
-
-      var numBaseTypesToAnalyze = tr.b.dictionaryLength(eventsByBaseTypeName);
       for (var eventTypeName in eventsByBaseTypeName) {
-        var subSelection = eventsByBaseTypeName[eventTypeName];
         var subView = this.createSubViewForSelection_(
-          eventTypeName, subSelection, previousSubViews[eventTypeName]);
-        // Store the eventTypeName for future tab restoration.
-        subView._eventTypeName = eventTypeName;
+            eventTypeName, eventsByBaseTypeName[eventTypeName]);
         Polymer.dom(this.tabView_).appendChild(subView);
-
-        subView.selection = subSelection;
       }
-
-      // Restore the tab type that was previously selected. First try by tag
-      // name.
-      var tab;
-      if (lastSelectedTabTagName)
-        tab = Polymer.dom(this.tabView_).querySelector(lastSelectedTabTagName);
-
-      // If that fails, look for a tab with that typeName.
-      if (!tab && lastSelectedTabTypeName) {
-        var tab = tr.b.findFirstInArray(
-            Polymer.dom(this.tabView_).children, function(tab) {
-          return tab._eventTypeName === lastSelectedTabTypeName;
-        });
-      }
-      // If all else fails, pick the first tab.
-      if (!tab)
-        tab = Polymer.dom(this.tabView_).firstChild;
-
-      this.tabView_.selectedTab = tab;
-      this.onSelectedTabChange_();
 
       this.tabView_.addEventListener(
         'selected-tab-change', this.onSelectedTabChange_);
     },
 
-    createSubViewForSelection_: function(eventTypeName, subSelection,
-        previousSubView) {
-      // Find.
-      var eventTypeInfo = EventRegistry.getEventTypeInfoByTypeName(
-          eventTypeName);
-      var singleMode = subSelection.length == 1;
-      var tagName;
-      if (subSelection.length === 1)
-        tagName = eventTypeInfo.metadata.singleViewElementName;
-      else
-        tagName = eventTypeInfo.metadata.multiViewElementName;
+    createSubViewForSelection_: function(eventTypeName, subSelection) {
+      var eventTypeInfo =
+          EventRegistry.getEventTypeInfoByTypeName(eventTypeName);
+      var tagName = subSelection.length === 1 ?
+          eventTypeInfo.metadata.singleViewElementName :
+          eventTypeInfo.metadata.multiViewElementName;
 
-      // if (!tr.ui.b.getPolymerElementNamed(tagName))
-      //   throw new Error('Element not registered: ' + tagName);
-
-      // Create if necessary.
-      var subView;
-      if (previousSubView &&
-          previousSubView.tagName === tagName.toUpperCase())
-        subView = previousSubView;
-      else
-        subView = document.createElement(tagName);
-
-      if (subView.constructor === HTMLElement)
+      var subView = document.createElement(tagName);
+      // Unregistered elements with valid names (i.e. names that have a hyphen
+      // in them) that are instantiated inherit from HTMLElement. Unregistered
+      // elements with invalid names inherit from HTMLUnknownelement.
+      if (subView.constructor === HTMLElement ||
+          subView.constructor === HTMLUnknownElement)
         throw new Error('Element not registered: ' + tagName);
-      // Set label.
-      var camelLabel;
-      if (subSelection.length === 1)
-        camelLabel = EventRegistry.getUserFriendlySingularName(eventTypeName);
-      else
-        camelLabel = EventRegistry.getUserFriendlyPluralName(eventTypeName);
-      subView.tabLabel = camelLabel + ' (' + subSelection.length + ')';
 
+      subView.tabLabel = getLabelForSelection_(eventTypeName, subSelection);
+      subView.selection = subSelection;
       return subView;
     },
 
-    onSelectedTabChange_: function() {
+    getLabelForSelection_: function(eventTypeName, subSelection) {
+      var camelLabel = subSelection.length === 1 ?
+          EventRegistry.getUserFriendlySingularName(eventTypeName) :
+          EventRegistry.getUserFriendlyPluralName(eventTypeName);
+      return camelLabel + ' (' + subSelection.length + ')';
+    },
+
+    onSelectedTabChanged_: function() {
       var brushingStateController = this.brushingStateController_;
       if (this.tabView_.selectedTab) {
         var selectedTab = this.tabView_.selectedTab;

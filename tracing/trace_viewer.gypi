@@ -341,6 +341,7 @@
       'tracing/ui/base/pie_chart.html',
       'tracing/ui/base/quad_stack_view.html',
       'tracing/ui/base/tab_view.html',
+      'tracing/ui/base/tab_view2.html',
       'tracing/ui/base/table.html',
       'tracing/ui/base/timing_tool.html',
       'tracing/ui/base/toolbar_button.html',

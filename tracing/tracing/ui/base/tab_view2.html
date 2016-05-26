@@ -37,7 +37,7 @@ found in the LICENSE file.
         cursor: pointer;
         display: inline-block;
         margin: 5px 0px 0px 15px;
-        padding: 3px 10px 3px 10px;
+      padding: 3px 10px 3px 10p;
       }
 
       #tabs li[selected] {
@@ -148,6 +148,8 @@ Polymer({
 
   onTabClicked_: function(event) {
     this.selectedSubView = event.model.item;
+
+    this.fire('selected-tab-change');
   }
 });
 </script>

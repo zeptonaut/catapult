@@ -10,7 +10,53 @@ found in the LICENSE file.
 -->
 <dom-module id='tr-ui-a-tab-view2'>
   <template>
+    <style>
+      #selection_description, #tabs {
+        font-size: 12px;
+      }
+
+      #selection_description {
+        font-weight: bold;
+      }
+
+      #tabs {
+        border: 1px solid #8e8e8e;
+        border-left: 0;
+        border-right: 0;
+        background: rgb(236, 236, 236);
+        overflow: hidden;
+        margin: 0;
+      }
+
+      #tabs label {
+        display: inline-block;
+        margin: 10px 0px 3px 0px;
+      }
+
+      #tabs li {
+        cursor: pointer;
+        display: inline-block;
+        margin: 5px 0px 0px 15px;
+        padding: 3px 10px 3px 10px;
+      }
+
+      #tabs li[selected] {
+        background: white;
+        border: 1px solid #8e8e8e;
+        border-bottom: 0;
+      }
+
+      ::content > *:not([selected]) {
+        display: none;
+      }
+    </style>
     <ul id="tabs">
+      <label id="selection_description">[[label_]]</label>
+      <template is="dom-repeat" items="[[subViews_]]">
+        <li selected$=[[isSelected_(item,selectedSubView_)]] on-click='onTabClicked_'>
+          [[item.tabLabel]]
+        </li>
+      </template>
     </ul>
     <content>
     </content>
@@ -23,37 +69,85 @@ Polymer({
   is: 'tr-ui-a-tab-view2',
 
   properties: {
+    label_: {
+      type: String,
+      value: () => ""
+    },
     subViews_: {
       type: Array,
-      value: []
+      value: () => []
     },
-    selectedSubView_: {
-      type: Object,
-    }
+    selectedSubView_: Object
   },
 
   ready: function() {
-    this.childObserver_ = Polymer.dom(this).observeNodes(
-      this.onChildrenChanged_);
+    this.childObserver_ =
+        Polymer.dom(this).observeNodes(this.onChildrenChanged_);
   },
 
-  addSubView: function(subView) {
-    this.push('subViews_', subView);
+  set label(newLabel) {
+    this.set('label_', newLabel);
+  },
 
-    if (!this.get('selectedSubView_'))
-      this.set('selectedSubView_', subView);
+  set selectedSubView(subView) {
+    if (this.selectedSubView_)
+      this.selectedSubView_.removeAttribute('selected');
+
+    this.set('selectedSubView_', subView);
+
+    if (subView)
+      Polymer.dom(subView).setAttribute('selected', 'true');
+  },
+
+  clearSubViews: function() {
+    this.splice("subViews_", 0, this.subViews_.length);
   },
 
   onChildrenChanged_: function(changeInfo) {
-    // TODO(charliea): I'm not a big fan of this 'dual representation' of the
-    // tabs as both children of content and as a property. Is there any way to
-    // get around this?
+    // TODO(charliea): Right now, we have to use this observer because there's a
+    // sort of dual representation of subviews as both children in our light DOM
+    // and as elements in this.subViews_. This seems wrong, and Polymer probably
+    // has a way to avoid this.
     for (var node of changeInfo.addedNodes) {
-      if (node.behaviors.indexOf(Catapult.tr_ui_a_sub_view_behavior) < 0){
+      if (!node.behaviors ||
+          node.behaviors.indexOf(Catapult.tr_ui_a_sub_view_behavior) < 0) {
         throw new Error('Analysis tab view can only contain analysis sub ' +
             'views as children.');
       }
     }
+
+    // If a node is removed and then added (or vice versa), we want to make sure
+    // that it stays as it was before. This probably isn't a perfect way to do
+    // do this: if a Node is added and removed *multiple* times, we'll still run
+    // into problems here. However, it's probably good enough for practical
+    // purposes.
+    var nodesToAdd = changeInfo.addedNodes.filter(
+        (node) => changeInfo.removedNodes.indexOf(node) < 0);
+    var nodesToRemove = changeInfo.removedNodes.filter(
+        (node) => changeInfo.addedNodes.indexOf(node) < 0);
+
+    for (var node of nodesToAdd) {
+      Polymer.dom(node).removeAttribute('selected');
+      this.push('subViews_', node);
+    }
+
+    for (var node of nodesToRemove) {
+      if (node === this.selectedSubView_)
+        this.selectedSubView = undefined;
+
+      this.unshift('subViews_', node);
+    }
+
+    if (!this.selectedSubView_ && this.subViews_.length > 0)
+      this.selectedSubView = this.subViews_[0];
+  },
+
+  isSelected_: function(subView, selectedSubView) {
+    return subView === selectedSubView;
+  },
+
+  onTabClicked_: function(event) {
+    this.selectedSubView = event.model.item;
   }
 });
 </script>

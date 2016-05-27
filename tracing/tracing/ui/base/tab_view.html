@@ -1,456 +1,163 @@
 <!DOCTYPE html>
 <!--
-Copyright (c) 2014 The Chromium Authors. All rights reserved.
+Copyright 2016 The Chromium Authors. All rights reserved.
 Use of this source code is governed by a BSD-style license that can be
 found in the LICENSE file.
 -->
 
+<!--
+@fileoverview TODO(charliea): Write this
+-->
 <dom-module id='tr-ui-a-tab-view'>
   <template>
     <style>
-      :host {
-        display: flex;
-        flex-flow: column nowrap;
-        overflow: hidden;
-        box-sizing: border-box;
-      }
-
-      tab-strip.hidden {
-        display: none;
-      }
-
-      tab-strip {
-        background-color: rgb(236, 236, 236);
-        border-bottom: 1px solid #8e8e8e;
-        display: flex;
-        flex: 0 0 auto;
-        flex-flow: row;
-        overflow-x: auto;
-        padding: 0 10px 0 10px;
+      #selection_description, #tabs {
         font-size: 12px;
       }
 
-      tab-button {
-        display: block;
-        flex: 0 0 auto;
-        padding: 4px 15px 1px 15px;
-        margin-top: 2px;
-      }
-
-      tab-button[selected=true] {
-        background-color: white;
-        border: 1px solid rgb(163, 163, 163);
-        border-bottom: none;
-        padding: 3px 14px 1px 14px;
-      }
-
-      tabs-content-container {
-        display: flex;
-        flex: 1 1 auto;
-        overflow: auto;
-        width: 100%;
-      }
-
-      tabs-content-container ::content > * {
-        flex: 1 1 auto;
-      }
-
-      tabs-content-container ::content > *:not([selected]) {
-        display: none;
-      }
-
-      button-label {
-        display: inline;
-      }
-
-      tab-strip-heading {
-        display: block;
-        flex: 0 0 auto;
-        padding: 4px 15px 1px 15px;
-        margin-top: 2px;
-        margin-before: 20px;
-        margin-after: 10px;
-      }
-      #tsh {
-        display: inline;
+      #selection_description {
         font-weight: bold;
       }
+
+      #tabs {
+        display: block;
+        border-top: 1px solid #8e8e8e;
+        border-bottom: 1px solid #8e8e8e;
+        background: rgb(236, 236, 236);
+        overflow: hidden;
+        margin: 0;
+      }
+
+      #tabs label {
+        display: inline-block;
+        margin: 10px 0px 3px 0px;
+      }
+
+      #tabs li {
+        cursor: pointer;
+        display: inline-block;
+        margin: 5px 0px 0px 15px;
+        padding: 3px 10px 3px 10px;
+      }
+
+      #tabs li[selected] {
+        background: white;
+        border: 1px solid #8e8e8e;
+        border-bottom: 0;
+      }
+
+      ::content > *:not([selected]) {
+        display: none;
+      }
     </style>
-
-    <tab-strip>
-      <tab-strip-heading id="tshh">
-        <span id="tsh"></span>
-      </tab-strip-heading>
-      <template is="dom-repeat" items="{{tabs_}}">
-        <tab-button
-            id="{{item.id}}"
-            on-click="tabButtonSelectHandler_"
-            selected="{{computeTabSelectState_(selectedTab_, item)}}">
-          <button-label>{{computeTabLabel_(item)}}</button-label>
-        </tab-button>
+    <ul id="tabs">
+      <label id="selection_description">[[label_]]</label>
+      <template is="dom-repeat" items="[[subViews_]]">
+        <li selected$=[[isSelected_(item,selectedSubView_)]] on-click='onTabClicked_'>
+          [[item.tabLabel]]
+        </li>
       </template>
-    </tab-strip>
-
-    <tabs-content-container id='content-container'>
-        <content></content>
-    </tabs-content-container>
-
+    </ul>
+    <content>
+    </content>
   </template>
 </dom-module>
 <script>
 'use strict';
-window.TracingAnalysisTabView = Polymer({
+
+Polymer({
   is: 'tr-ui-a-tab-view',
 
   properties: {
-    tabs_: {
+    label_: {
+      type: String,
+      value: () => ""
+    },
+    subViews_: {
       type: Array,
       value: () => []
     },
-    selectedTab_: {
-      type: Object,
-      value: () => {}
-    }
+    selectedSubView_: Object
   },
 
   ready: function() {
-    this.$.tshh.style.display = 'none';
-
-    // A tab is represented by the following tuple:
-    // (id, label, content, observer, savedScrollTop, savedScrollLeft).
-    // The properties are used in the following way:
-    // id: Uniquely identifies a tab. It is the same number as the index
-    //     in the tabs array. Used primarily by the on-click event attached
-    //     to buttons.
-    // label: A string, representing the label printed on the tab button.
-    // content: The light-dom child representing the contents of the tab.
-    //     The content is appended to this tab-view by the user.
-    // observers: The observers attached to the content node to watch for
-    //     attribute changes. The attributes of interest are: 'selected',
-    //     and 'tab-label'.
-    // savedScrollTop/Left: Used to return the scroll position upon switching
-    //     tabs. The values are generally saved when a tab switch occurs.
-    //
-    // The order of the tabs is relevant for the tab ordering.
-
-    // Register any already existing children.
-    for (var i = 0; i < Polymer.dom(this).children.length; i++)
-      this.processAddedChild_(Polymer.dom(this).children[i]);
-
-    // In case the user decides to add more tabs, make sure we watch for
-    // any child mutations.
-    this.childrenObserver_ = new MutationObserver(
-        this.childrenUpdated_.bind(this));
-    this.childrenObserver_.observe(
-        this.$['content-container'], { childList: 'true' });
+    this.childObserver_ =
+        Polymer.dom(this).observeNodes(this.onChildrenChanged_);
   },
 
-  get tabStripHeadingText() {
-    return Polymer.dom(this.$.tsh).textContent;
+  set label(newLabel) {
+    this.set('label_', newLabel);
   },
 
-  set tabStripHeadingText(tabStripHeadingText) {
-    Polymer.dom(this.$.tsh).textContent = tabStripHeadingText;
-    if (!!tabStripHeadingText)
-      this.$.tshh.style.display = '';
-    else
-      this.$.tshh.style.display = 'none';
+  get selectedSubView() {
+    return this.selectedSubView_;
   },
 
-  get selectedTab() {
-    // Make sure we process any pending children additions / removals, before
-    // trying to select a tab. Otherwise, we might not find some children.
-    this.childrenUpdated_(
-      this.childrenObserver_.takeRecords(), this.childrenObserver_);
+  set selectedSubView(subView) {
+    if (this.selectedSubView_)
+      this.selectedSubView_.removeAttribute('selected');
 
-    // Do not give access to the user to the inner data structure.
-    // A user should only be able to mutate the added tab content.
-    var selectedTab = this.get('selectedTab_');
-    if (selectedTab)
-      return selectedTab.content;
+    this.set('selectedSubView_', subView);
 
-    return undefined;
+    if (subView)
+      Polymer.dom(subView).setAttribute('selected', 'true');
+
+    this.fire('selected-tab-change');
   },
 
-  set selectedTab(content) {
-    // Make sure we process any pending children additions / removals, before
-    // trying to select a tab. Otherwise, we might not find some children.
-    this.childrenUpdated_(
-      this.childrenObserver_.takeRecords(), this.childrenObserver_);
+  clearSubViews: function() {
+    this.splice("subViews_", 0, this.subViews_.length);
+    this.selectedSubView = undefined;
+  },
 
-    if (content === undefined || content === null) {
-      this.changeSelectedTabById_(undefined);
-      return;
-    }
-
-    // Search for the specific node in our tabs list.
-    // If it is not there print a warning.
-    var contentTabId = undefined;
-    for (var i = 0; i < this.tabs_.length; i++) {
-      if (this.get('tabs_.' + i).content === content) {
-        contentTabId = this.get('tabs_.' + i).id;
-        break;
+  onChildrenChanged_: function(changeInfo) {
+    // TODO(charliea): Right now, we have to use this observer because there's a
+    // sort of dual representation of subviews as both children in our light DOM
+    // and as elements in this.subViews_. This seems wrong, and Polymer probably
+    // has a way to avoid this, but I don't know what it is.
+    for (var node of changeInfo.addedNodes) {
+      if (!node.behaviors ||
+          node.behaviors.indexOf(Catapult.tr_ui_a_sub_view_behavior) < 0) {
+        throw new Error('Analysis tab view can only contain analysis sub ' +
+            'views as children.');
       }
     }
 
-    if (contentTabId === undefined)
-      return;
+    // If a node is removed and then added (or vice versa), we want to make sure
+    // that it stays as it was before. This probably isn't a perfect way to do
+    // do this: if a Node is added and removed *multiple* times, we'll still run
+    // into problems here. However, it's probably good enough for practical
+    // purposes.
+    var nodesToAdd = changeInfo.addedNodes.filter(
+        (node) => changeInfo.removedNodes.indexOf(node) < 0);
+    var nodesToRemove = changeInfo.removedNodes.filter(
+        (node) => changeInfo.addedNodes.indexOf(node) < 0);
 
-    this.changeSelectedTabById_(contentTabId);
-  },
-
-  get tabsHidden() {
-    var ts = Polymer.dom(this.root).querySelector('tab-strip');
-    return ts.classList.contains('hidden');
-  },
-
-  set tabsHidden(tabsHidden) {
-    tabsHidden = !!tabsHidden;
-    var ts = Polymer.dom(this.root).querySelector('tab-strip');
-    if (tabsHidden)
-      ts.classList.add('hidden');
-    else
-      ts.classList.remove('hidden');
-  },
-
-  get tabs() {
-    return this.tabs_.map(function(tabObject) {
-      return tabObject.content;
-    });
-  },
-
-  /**
-   * Function called on light-dom child addition.
-   */
-  processAddedChild_: function(child) {
-    var observerAttributeSelected = new MutationObserver(
-        this.childAttributesChanged_.bind(this));
-    var observerAttributeTabLabel = new MutationObserver(
-        this.childAttributesChanged_.bind(this));
-    var tabObject = {
-      id: this.tabs_.length,
-      content: child,
-      label: child.getAttribute('tab-label'),
-      observers: {
-        forAttributeSelected: observerAttributeSelected,
-        forAttributeTabLabel: observerAttributeTabLabel
-      }
-    };
-    // this.tabs_.push(tabObject);
-    this.push('tabs_', tabObject);
-    if (child.hasAttribute('selected')) {
-      // When receiving a child with the selected attribute, if we have no
-      // selected tab, mark the child as the selected tab, otherwise keep
-      // the previous selection.
-      if (this.get('selectedTab_'))
-        Polymer.dom(child).removeAttribute('selected');
-      else
-        this.setSelectedTabById_(tabObject.id);
+    for (var node of nodesToAdd) {
+      Polymer.dom(node).removeAttribute('selected');
+      this.push('subViews_', node);
     }
 
-    // This is required because the user might have set the selected
-    // property before we got to process the child.
-    var previousSelected = child.selected;
+    for (var node of nodesToRemove) {
+      if (node === this.selectedSubView_)
+        this.selectedSubView = undefined;
 
-    var tabView = this;
-
-    Object.defineProperty(
-        child,
-        'selected', {
-          configurable: true,
-          set: function(value) {
-            if (value) {
-              tabView.changeSelectedTabById_(tabObject.id);
-              return;
-            }
-
-            var wasSelected = (tabView.get('selectedTab_') === tabObject);
-            if (wasSelected)
-              tabView.changeSelectedTabById_(undefined);
-          },
-          get: function() {
-            return this.hasAttribute('selected');
-          }
-        });
-
-    if (previousSelected)
-      child.selected = previousSelected;
-
-    observerAttributeSelected.observe(child, {
-      attributeFilter: ['selected']
-    });
-    observerAttributeTabLabel.observe(child, {
-      attributeFilter: ['tab-label']
-    });
-  },
-
-  /**
-   * Function called on light-dom child removal.
-   */
-  processRemovedChild_: function(child) {
-    for (var i = 0; i < this.get('tabs_').length; i++) {
-      var tab = this.get('tabs_.' + i);
-      // Make sure ids are the same as the tab position after removal.
-      tab.id = i;
-      if (tab.content === child) {
-        tab.observers.forAttributeSelected.disconnect();
-        tab.observers.forAttributeTabLabel.disconnect();
-        // The user has removed the currently selected tab.
-        if (tab === this.get('selectedTab_')) {
-          this.clearSelectedTab_();
-          this.fire('selected-tab-change');
-        }
-        Polymer.dom(child).removeAttribute('selected');
-        delete child.selected;
-        // Remove the observer since we no longer care about this child.
-        this.splice('tabs_', i, 1);
-        i--;
-      }
-    }
-  },
-
-
-  /**
-   * This function handles child attribute changes. The only relevant
-   * attributes for the tab-view are 'tab-label' and 'selected'.
-   */
-  childAttributesChanged_: function(mutations, observer) {
-    var tabObject = undefined;
-    // First figure out which child has been changed.
-    for (var i = 0; i < this.tabs_.length; i++) {
-      var observers = this.get('tabs_.' + i).observers;
-      if (observers.forAttributeSelected === observer ||
-          observers.forAttributeTabLabel === observer) {
-          tabObject = this.get('tabs_.' + i);
-          break;
-      }
+      this.unshift('subViews_', node);
     }
 
-    // This should not happen, unless the user has messed with our internal
-    // data structure.
-    if (!tabObject)
-      return;
-
-    // Next handle the attribute changes.
-    for (var i = 0; i < mutations.length; i++) {
-      var node = tabObject.content;
-      // 'tab-label' attribute has been changed.
-      if (mutations[i].attributeName === 'tab-label')
-        tabObject.label = node.getAttribute('tab-label');
-      // 'selected' attribute has been changed.
-      if (mutations[i].attributeName === 'selected') {
-        // The attribute has been set.
-        var nodeIsSelected = node.hasAttribute('selected');
-        if (nodeIsSelected)
-          this.changeSelectedTabById_(tabObject.id);
-        else
-          this.changeSelectedTabById_(undefined);
-      }
-    }
+    Polymer.dom.flush();
+    if (!this.selectedSubView_ && this.subViews_.length > 0)
+      this.selectedSubView = this.subViews_[0];
   },
 
-  /**
-   * This function handles light-dom additions and removals from the
-   * tab-view component.
-   */
-  childrenUpdated_: function(mutations, observer) {
-    mutations.forEach(function(mutation) {
-      for (var i = 0; i < mutation.removedNodes.length; i++)
-        this.processRemovedChild_(mutation.removedNodes[i]);
-      for (var i = 0; i < mutation.addedNodes.length; i++)
-        this.processAddedChild_(mutation.addedNodes[i]);
-    }, this);
+  isSelected_: function(subView, selectedSubView) {
+    return subView === selectedSubView;
   },
 
-  /**
-   * Handler called when a click event happens on any of the tab buttons.
-   */
-  tabButtonSelectHandler_: function(event) {
-    this.changeSelectedTabById_(event.currentTarget.id);
-  },
+  onTabClicked_: function(event) {
+    this.selectedSubView = event.model.item;
 
-  /**
-   * This does the actual work. :)
-   */
-  changeSelectedTabById_: function(id) {
-    var newTab = id !== undefined ? this.get('tabs_.' + id) : undefined;
-    var changed = this.get('selectedTab_') !== newTab;
-    this.saveCurrentTabScrollPosition_();
-    this.clearSelectedTab_();
-    if (id !== undefined) {
-      this.setSelectedTabById_(id);
-      this.restoreCurrentTabScrollPosition_();
-    }
 
-    if (changed)
-      this.fire('selected-tab-change');
-  },
-
-  /**
-   * This function updates the currently selected tab based on its internal
-   * id. The corresponding light-dom element receives the selected attribute.
-   */
-  setSelectedTabById_: function(id) {
-    this.set('selectedTab_', this.get('tabs_.' + id));
-    // Disconnect observer while we mutate the child.
-    this.get('selectedTab_').observers.forAttributeSelected.disconnect();
-    Polymer.dom(this.get('selectedTab_').content)
-        .setAttribute('selected', 'selected');
-    // Reconnect the observer to watch for changes in the future.
-    this.get('selectedTab_').observers.forAttributeSelected.observe(
-        this.get('selectedTab_').content, { attributeFilter: ['selected'] });
-
-  },
-
-  saveTabStates: function() {
-    // Scroll positions of unselected tabs have already been saved.
-    this.saveCurrentTabScrollPosition_();
-  },
-
-  saveCurrentTabScrollPosition_: function() {
-    var selectedTab = this.get('selectedTab_');
-    if (selectedTab) {
-      selectedTab.content._savedScrollTop =
-          this.$['content-container'].scrollTop;
-      selectedTab.content._savedScrollLeft =
-          this.$['content-container'].scrollLeft;
-    }
-  },
-
-  restoreCurrentTabScrollPosition_: function() {
-    var selectedTab = this.get('selectedTab_');
-    if (selectedTab) {
-      this.$['content-container'].scrollTop =
-          selectedTab.content._savedScrollTop || 0;
-      this.$['content-container'].scrollLeft =
-          selectedTab.content._savedScrollLeft || 0;
-    }
-  },
-
-  /**
-   * This function clears the currently selected tab. This handles removal
-   * of the selected attribute from the light-dom element.
-   */
-  clearSelectedTab_: function() {
-    var selectedTab = this.get('selectedTab_');
-    if (selectedTab) {
-      // Disconnect observer while we mutate the child.
-      selectedTab.observers.forAttributeSelected.disconnect();
-      Polymer.dom(selectedTab.content).removeAttribute('selected');
-      // Reconnect the observer to watch for changes in the future.
-      selectedTab.observers.forAttributeSelected.observe(
-          selectedTab.content, { attributeFilter: ['selected'] });
-      this.set('selectedTab_', undefined);
-    }
-  },
-
-  computeTabLabel_: function(tab) {
-    return tab.label ? tab.label : 'No Label';
-  },
-
-  computeTabSelectState_: function(selectedTab, tab) {
-    return selectedTab.id === tab.id;
   }
-
 });
 </script>

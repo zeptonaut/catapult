@@ -20,9 +20,9 @@ found in the LICENSE file.
       }
 
       #tabs {
-        border: 1px solid #8e8e8e;
-        border-left: 0;
-        border-right: 0;
+        display: block;
+        border-top: 1px solid #8e8e8e;
+        border-bottom: 1px solid #8e8e8e;
         background: rgb(236, 236, 236);
         overflow: hidden;
         margin: 0;
@@ -37,7 +37,7 @@ found in the LICENSE file.
         cursor: pointer;
         display: inline-block;
         margin: 5px 0px 0px 15px;
-      padding: 3px 10px 3px 10p;
+        padding: 3px 10px 3px 10px;
       }
 
       #tabs li[selected] {
@@ -89,6 +89,10 @@ Polymer({
     this.set('label_', newLabel);
   },
 
+  get selectedSubView() {
+    return this.selectedSubView_;
+  },
+
   set selectedSubView(subView) {
     if (this.selectedSubView_)
       this.selectedSubView_.removeAttribute('selected');
@@ -103,6 +107,7 @@ Polymer({
 
   clearSubViews: function() {
     this.splice("subViews_", 0, this.subViews_.length);
+    this.selectedSubView = undefined;
   },
 
   onChildrenChanged_: function(changeInfo) {
@@ -140,6 +145,7 @@ Polymer({
       this.unshift('subViews_', node);
     }
 
+    Polymer.dom.flush();
     if (!this.selectedSubView_ && this.subViews_.length > 0)
       this.selectedSubView = this.subViews_[0];
   },

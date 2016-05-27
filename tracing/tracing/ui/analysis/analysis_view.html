@@ -93,16 +93,16 @@ using custom elements specialized for different event types.
     return camelLabel + ' (' + subSelection.length + ')';
   }
 
-  function getTagNameForType(eventTypeName) {
+  function getTagNameForType(eventTypeName, selection) {
     var eventTypeInfo =
         EventRegistry.getEventTypeInfoByTypeName(eventTypeName);
-    return subSelection.length === 1 ?
+    return selection.length === 1 ?
         eventTypeInfo.metadata.singleViewElementName :
         eventTypeInfo.metadata.multiViewElementName;
   }
 
   function createSubViewForSelection(eventTypeName, selection) {
-    var subView = document.createElement(getTagNameForType(eventTypeName));
+    var subView = document.createElement(getTagNameForType(eventTypeName, selection));
 
     // Unregistered elements with valid names (i.e. names that have a hyphen
     // in them) that are instantiated inherit from HTMLElement. Unregistered
@@ -120,12 +120,14 @@ using custom elements specialized for different event types.
     is: 'tr-ui-a-analysis-view',
 
     ready: function() {
+      this.brushingStateController_ = undefined;
+
       this.tabView_ = document.createElement('tr-ui-a-tab-view2');
       this.tabView_.addEventListener(
-          'selected-tab-change', this.onSelectedSubViewChanged_);
+          'selected-tab-change', this.onSelectedSubViewChanged_.bind(this));
 
       Polymer.dom(this).appendChild(this.tabView_);
-      this.brushingStateController_ = undefined;
+
     },
 
     set tallMode(value) {
@@ -145,16 +147,19 @@ using custom elements specialized for different event types.
     },
 
     set brushingStateController(brushingStateController) {
-      if (this.brushingStateController) {
+      if (this.brushingStateController_) {
         this.brushingStateController_.removeEventListener(
-            'change', this.onSelectionChanged_);
+            'change', this.onSelectionChanged_.bind(this));
       }
-      // TODO(charliea): Do we need to .bind(this) here?
+
       this.brushingStateController_ = brushingStateController;
       if (this.brushingStateController) {
         this.brushingStateController_.addEventListener(
-            'change', this.onSelectionChanged_);
+          'change', this.onSelectionChanged_.bind(this));
       }
+
+      // The new brushing controller may have a different selection than the
+      // last, so we have to refresh the subview.
       this.onSelectionChanged_();
     },
 
@@ -183,7 +188,7 @@ using custom elements specialized for different event types.
 
       if (!selectedSubView) {
         this.tallMode = false;
-        this.maybeChangeRelatedEvents(undefined);
+        this.maybeChangeRelatedEvents_(undefined);
         return;
       }
 

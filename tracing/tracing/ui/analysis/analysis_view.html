@@ -45,7 +45,7 @@ found in the LICENSE file.
       href="/tracing/ui/analysis/single_thread_time_slice_sub_view.html">
 <link rel="import"
     href="/tracing/ui/analysis/single_user_expectation_sub_view.html">
-<link rel="import" href="/tracing/ui/base/tab_view2.html">
+<link rel="import" href="/tracing/ui/base/tab_view.html">
 
 <!--
 @fileoverview A component used to display an analysis of a selection,
@@ -121,13 +121,12 @@ using custom elements specialized for different event types.
 
     ready: function() {
       this.brushingStateController_ = undefined;
-
-      this.tabView_ = document.createElement('tr-ui-a-tab-view2');
+      this.lastSelection_ = undefined;
+      this.tabView_ = document.createElement('tr-ui-a-tab-view');
       this.tabView_.addEventListener(
           'selected-tab-change', this.onSelectedSubViewChanged_.bind(this));
 
       Polymer.dom(this).appendChild(this.tabView_);
-
     },
 
     set tallMode(value) {
@@ -168,11 +167,13 @@ using custom elements specialized for different event types.
     },
 
     onSelectionChanged_: function(e) {
-      var selection = this.brushingStateController_.selection;
+      if (this.lastSelection_ && this.selection.equals(this.lastSelection_))
+        return;
 
       this.tallMode = false;
       this.tabView_.clearSubViews();
 
+      var selection = this.selection;
       this.tabView.label = getTabLabel(selection);
       var eventsByBaseTypeName = selection.getEventsOrganizedByBaseType(true);
       for (var eventTypeName in eventsByBaseTypeName) {
@@ -180,6 +181,8 @@ using custom elements specialized for different event types.
             eventTypeName, eventsByBaseTypeName[eventTypeName]);
         Polymer.dom(this.tabView_).appendChild(subView);
       }
+
+      this.lastSelection_ = selection;
     },
 
     onSelectedSubViewChanged_: function() {

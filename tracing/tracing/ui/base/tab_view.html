@@ -23,41 +23,39 @@ found in the LICENSE file.
         display: block;
         border-top: 1px solid #8e8e8e;
         border-bottom: 1px solid #8e8e8e;
-        background: rgb(236, 236, 236);
+        background-color: #ececec;
         overflow: hidden;
         margin: 0;
       }
 
-      #tabs label {
-        display: inline-block;
-        margin: 10px 0px 3px 0px;
+      #tabs input[type=radio] {
+        display: none;
       }
 
-      #tabs li {
+      #tabs tab label {
         cursor: pointer;
         display: inline-block;
+        border: 1px solid #ececec;
         margin: 5px 0px 0px 15px;
         padding: 3px 10px 3px 10px;
       }
 
-      #tabs li[selected] {
-        background: white;
+      #tabs input[type=radio]:checked ~ label {
+        background-color: white;
         border: 1px solid #8e8e8e;
-        border-bottom: 0;
-      }
-
-      ::content > *:not([selected]) {
-        display: none;
+        border-bottom: 1px solid white;
       }
     </style>
-    <ul id="tabs">
+    <div id="tabs">
       <label id="selection_description">[[label_]]</label>
       <template is="dom-repeat" items="[[subViews_]]">
-        <li selected$=[[isSelected_(item,selectedSubView_)]] on-click='onTabClicked_'>
-          [[item.tabLabel]]
-        </li>
+        <tab>
+          <input type="radio" name="tabs" id$="[[item.tagName]]"
+              on-change='onTabChanged_' />
+          <label for$="[[item.tagName]]">[[item.tabLabel]]</label>
+        </tab>
       </template>
-    </ul>
+    </div>
     <content>
     </content>
   </template>
@@ -82,7 +80,7 @@ Polymer({
 
   ready: function() {
     this.childObserver_ =
-        Polymer.dom(this).observeNodes(this.onChildrenChanged_);
+      Polymer.dom(this).observeNodes(this.onChildrenChanged_);
   },
 
   set label(newLabel) {
@@ -110,54 +108,18 @@ Polymer({
     this.selectedSubView = undefined;
   },
 
-  onChildrenChanged_: function(changeInfo) {
-    // TODO(charliea): Right now, we have to use this observer because there's a
-    // sort of dual representation of subviews as both children in our light DOM
-    // and as elements in this.subViews_. This seems wrong, and Polymer probably
-    // has a way to avoid this, but I don't know what it is.
-    for (var node of changeInfo.addedNodes) {
-      if (!node.behaviors ||
-          node.behaviors.indexOf(Catapult.tr_ui_a_sub_view_behavior) < 0) {
-        throw new Error('Analysis tab view can only contain analysis sub ' +
-            'views as children.');
-      }
-    }
+  addSubView: function(subView) {
+    // TODO(charliea): assert instanceOf...
 
-    // If a node is removed and then added (or vice versa), we want to make sure
-    // that it stays as it was before. This probably isn't a perfect way to do
-    // do this: if a Node is added and removed *multiple* times, we'll still run
-    // into problems here. However, it's probably good enough for practical
-    // purposes.
-    var nodesToAdd = changeInfo.addedNodes.filter(
-        (node) => changeInfo.removedNodes.indexOf(node) < 0);
-    var nodesToRemove = changeInfo.removedNodes.filter(
-        (node) => changeInfo.addedNodes.indexOf(node) < 0);
-
-    for (var node of nodesToAdd) {
-      Polymer.dom(node).removeAttribute('selected');
-      this.push('subViews_', node);
-    }
-
-    for (var node of nodesToRemove) {
-      if (node === this.selectedSubView_)
-        this.selectedSubView = undefined;
-
-      this.unshift('subViews_', node);
-    }
-
-    Polymer.dom.flush();
-    if (!this.selectedSubView_ && this.subViews_.length > 0)
-      this.selectedSubView = this.subViews_[0];
+    this.push('subViews_', subView);
   },
 
   isSelected_: function(subView, selectedSubView) {
     return subView === selectedSubView;
   },
 
-  onTabClicked_: function(event) {
+  onTabChanged_: function(event) {
     this.selectedSubView = event.model.item;
-
-
   }
 });
 </script>

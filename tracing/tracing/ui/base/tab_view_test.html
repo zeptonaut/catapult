@@ -13,8 +13,20 @@ found in the LICENSE file.
 <link rel="import" href="/tracing/ui/analysis/multi_power_sample_sub_view.html">
 <link rel="import" href="/tracing/ui/base/tab_view.html">
 
+<dom-module id='tr-ui-b-tab-view-test-non-sub-view'>
+  <template>
+    <div></div>
+  </template>
+</dom-module>
 <script>
 'use strict';
+
+var tr_ui_b_tab_view_test_non_sub_view_behavior = {};
+
+Polymer({
+  is: 'tr-ui-b-tab-view-test-non-sub-view',
+  behaviors: [tr_ui_b_tab_view_test_non_sub_view_behavior]
+});
 
 tr.b.unittest.testSuite(function() {
   function createPowerSampleSubView() {
@@ -60,16 +72,55 @@ tr.b.unittest.testSuite(function() {
   test('instantiate_oneTab', function() {
     var tabView = document.createElement('tr-ui-a-tab-view');
     tabView.label = '1 item selected.';
-    Polymer.dom(tabView).appendChild(createPowerSampleSubView());
+    tabView.addSubView(createPowerSampleSubView());
     this.addHTMLOutput(tabView);
   });
 
   test('instantiate_twoTabs', function() {
     var tabView = document.createElement('tr-ui-a-tab-view');
     tabView.label = '3 items selected.';
-    Polymer.dom(tabView).appendChild(createPowerSampleSubView());
-    Polymer.dom(tabView).appendChild(createAlertSubView());
+    tabView.addSubView(createPowerSampleSubView());
+    tabView.addSubView(createAlertSubView());
     this.addHTMLOutput(tabView);
+  });
+
+  test('addSubView_throwsWithNonHtmlElement', function() {
+    var tabView = document.createElement('tr-ui-a-tab-view');
+
+    assert.throws(function() {
+      tabView.addSubView(1);
+    }, 'Sub view being added must be a registered Polymer element with the sub '
+        + 'view behavior');
+  });
+
+  test('addSubView_throwsWithNonPolymerHtmlElement', function() {
+    var tabView = document.createElement('tr-ui-a-tab-view');
+
+    assert.throws(function() {
+      tabView.addSubView(document.createElement('p'));
+    }, 'Sub view being added must be a registered Polymer element with the sub '
+        + 'view behavior');
+  });
+
+  test('addSubView_throwsWithNonAnalysisViewPolymerElement', function() {
+    var tabView = document.createElement('tr-ui-a-tab-view');
+
+    assert.throws(function() {
+      tabView.addSubView(
+          document.createElement('tr-ui-b-tab-view-test-non-sub-view'));
+    }, 'Sub view being added must be a registered Polymer element with the sub '
+        + 'view behavior');
+  });
+
+  test('clearSubViews_selectedSubViewNullAfter', function() {
+    var tabView = document.createElement('tr-ui-a-tab-view');
+    tabView.label = '3 items selected.';
+    tabView.addSubView(createPowerSampleSubView());
+    tabView.addSubView(createAlertSubView());
+
+    tabView.clearSubViews();
+
+    assert.isUndefined(tabView.selectedSubView);
   });
 });
 </script>

@@ -179,7 +179,7 @@ using custom elements specialized for different event types.
       for (var eventTypeName in eventsByBaseTypeName) {
         var subView = createSubViewForSelection(
             eventTypeName, eventsByBaseTypeName[eventTypeName]);
-        Polymer.dom(this.tabView_).appendChild(subView);
+        this.tabView_.addSubView(subView);
       }
 
       this.lastSelection_ = selection;

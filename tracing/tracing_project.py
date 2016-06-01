@@ -65,6 +65,7 @@ class TracingProject(object):
   catapult_third_party_path = os.path.join(catapult_path, 'third_party')
 
   tracing_third_party_path = os.path.join(tracing_root_path, 'third_party')
+  polymer_path = os.path.join(catapult_third_party_path, 'polymer')
   py_vulcanize_path = os.path.join(catapult_third_party_path, 'py_vulcanize')
   vinn_path = os.path.join(catapult_third_party_path, 'vinn')
 
@@ -103,6 +104,7 @@ class TracingProject(object):
     self.source_paths.append(self.d3_path)
     self.source_paths.append(self.chai_path)
     self.source_paths.append(self.mocha_path)
+    self.source_paths.append(self.polymer_path)
 
   def CreateVulcanizer(self):
     from py_vulcanize import project as project_module
@@ -173,4 +175,3 @@ class TracingProject(object):
 
   def GetModuleNameForConfigName(self, config_name):
     return 'tracing.ui.extras.%s_config' % config_name
-

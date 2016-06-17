@@ -11,7 +11,7 @@ chart, a revision range selecting mini-chart at the bottom, and all of the alert
 triaging functionality in the chart.
 -->
 
-<link rel="import" href="/components/iron-flex-layout/iron-flex-layout.html">
+<link rel="import" href="/components/iron-flex-layout/iron-flex-layout-classes.html">
 <link rel="import" href="/components/iron-icon/iron-icon.html">
 <link rel="import" href="/components/paper-button/paper-button.html">
 
@@ -28,7 +28,7 @@ triaging functionality in the chart.
 <dom-module name="chart-container">
 
   <template>
-    <style>
+    <style include="iron-flex iron-flex-alignment iron-flex-factors">
     #container {
       width: 100%;
       display: flex;
@@ -143,12 +143,12 @@ triaging functionality in the chart.
     </style>
 
     <div id="container" compact$="{{showCompact}}">
-      <div id="top-bar" class="horizontal layout">
-        <div class="flex horizontal center-justified layout">
+      <div id="top-bar" class="layout horizontal">
+        <div class="layout horizontal center-justified flex">
           <chart-title id="title" series-group-list="{{seriesGroupList}}"
                        test-suites="{{testSuites}}"></chart-title>
         </div>
-        <div class="horizontal layout center">
+        <div class="layout horizontal center">
           <paper-button id="close-chart" on-click="closeChartClicked">
             Close
           </paper-button>
@@ -1604,7 +1604,7 @@ triaging functionality in the chart.
                   this.$['alert-icon-container']).appendChild(alertIcon);
               alertIcon.setPosition(top, left);
 
-              alertIcon.onmouseover = this.showTooltip.bind(
+              alertIcon.onmouseover = this.onAlertMouseOver.bind(
                   this, flotIndex, dataIndex);
               alertIcon.onclick = this.onAlertClick.bind(
                   this, flotIndex, dataIndex);
@@ -1826,6 +1826,16 @@ triaging functionality in the chart.
         },
 
         /**
+         * Brings up the tooltip when an alert circle is moused over.
+         * @param {number} flotSeriesIndex Index into the flot data series
+         *     array `this.chart.getData()`.
+         * @param {number} dataIndex Index into an array of points.
+         * @param {Event} The click event.
+         */
+        onAlertMouseOver: function(flotSeriesIndex, dataIndex, event) {
+          this.showTooltip(flotSeriesIndex, dataIndex);
+        },
+        /**
          * Updates the interface when a bug is triaged.
          * This is the event handler for a 'triaged' event on the
          * chart-tooltip.
@@ -1963,7 +1973,11 @@ triaging functionality in the chart.
           }
 
           // Set the alert-related properties of the tooltip.
+          if (opt_alerts === undefined)
+            opt_alerts = null;
           this.$.tooltip.alerts = opt_alerts;
+          if (opt_triaged === undefined)
+            opt_triaged = null;
           this.$.tooltip.triagedAlerts = opt_triaged;
           if (annotation['g_anomaly']) {
             if (annotation.g_anomaly['bug_id']) {

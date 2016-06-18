@@ -104,6 +104,7 @@ def GenerateJSToFile(f,
   f.write('\n')
 
   loader = load_sequence[0].loader
+  loader.LoadModule(module_filename='polymer/components/polymer/polymer.html')
 
   polymer_script = loader.LoadRawScript('components/polymer/polymer.min.js')
   f.write(polymer_script.contents)
@@ -219,6 +220,7 @@ def GenerateStandaloneHTMLToFile(output_file,
   _AssertIsUTF8(output_file)
   extra_scripts = extra_scripts or []
 
+  print "load_sequence: %s" % load_sequence
   if output_html_head_and_body:
     output_file.write(
         '<!DOCTYPE html>\n'

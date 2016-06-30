@@ -80,6 +80,9 @@ def WriteHTMLForTraceDataToFile(trace_data_list,
   if config_name is None:
     config_name = project.GetDefaultConfigName()
 
+  # TODO(charliea): Is this hooking in too early? Are we sure that Polymer will
+  # get included in the version of trace viewer that ultimately gets shipped in
+  # the Chrome binary if we do things this way?
   modules = [
       'components.polymer.polymer-micro',
       'components.polymer.polymer-mini',

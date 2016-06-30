@@ -112,12 +112,6 @@ def _HRefToResource(
 
 def Parse(loader, module_name, module_dir_name, is_component, parser_results):
   res = module.ModuleDependencyMetadata()
-  # print "loader: %s" % loader
-  # print "module_name: %s" % module_name
-  # print "module_dir_name: %s" % module_dir_name
-  # print "is_component: %s" % module_dir_name
-  # print "parser_results: %s" % parser_results
-
   if is_component:
     return res
 

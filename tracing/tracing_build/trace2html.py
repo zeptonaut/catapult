@@ -81,6 +81,9 @@ def WriteHTMLForTraceDataToFile(trace_data_list,
     config_name = project.GetDefaultConfigName()
 
   modules = [
+      'components.polymer.polymer-micro',
+      'components.polymer.polymer-mini',
+      'components.polymer.polymer',
       'tracing.trace2html',
       'tracing.extras.importer.gzip_importer',  # Must have for all configs.
       project.GetModuleNameForConfigName(config_name)

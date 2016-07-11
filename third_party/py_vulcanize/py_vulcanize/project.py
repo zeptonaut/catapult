@@ -134,6 +134,7 @@ class Project(object):
                                   module_filename=module_filename)
 
   def CalcLoadSequenceForModuleNames(self, module_names):
+    print module_names
     modules = [self.loader.LoadModule(module_name=name) for
                name in module_names]
     return self.CalcLoadSequenceForModules(modules)
@@ -142,6 +143,7 @@ class Project(object):
     already_loaded_set = set()
     load_sequence = []
     for m in modules:
+      print "Load module: %s" % m
       m.ComputeLoadSequenceRecursive(load_sequence, already_loaded_set)
     return load_sequence
 

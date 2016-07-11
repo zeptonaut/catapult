@@ -31,7 +31,6 @@ class HTMLModule(module.Module):
     self.dependency_metadata = Parse(self.loader,
                                      self.name,
                                      self._module_dir_name,
-                                     self.IsThirdPartyComponent(),
                                      parser_results)
     self._parser_results = parser_results
 
@@ -110,10 +109,8 @@ def _HRefToResource(
   return resource
 
 
-def Parse(loader, module_name, module_dir_name, is_component, parser_results):
+def Parse(loader, module_name, module_dir_name, parser_results):
   res = module.ModuleDependencyMetadata()
-  if is_component:
-    return res
 
   # External script references.
   for href in parser_results.scripts_external:

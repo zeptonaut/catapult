@@ -131,14 +131,6 @@ class Module(object):
   def filename(self):
     return self.resource.absolute_path
 
-  def IsThirdPartyComponent(self):
-    """Checks whether this module is a third-party Polymer component."""
-    if os.path.join('third_party', 'components') in self.filename:
-      return True
-    if os.path.join('third_party', 'polymer', 'components') in self.filename:
-      return True
-    return False
-
   def Parse(self):
     """Parses self.contents and fills in the module's dependency metadata."""
     raise NotImplementedError()
@@ -214,6 +206,7 @@ class Module(object):
     """
     if depth > 32:
       raise Exception('Include loop detected on %s', self.name)
+    print "Recursive module: %s" % self
     for dependent_module in self.dependent_modules:
       if dependent_module.name in already_loaded_set:
         continue

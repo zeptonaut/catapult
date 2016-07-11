@@ -84,17 +84,15 @@ def WriteHTMLForTraceDataToFile(trace_data_list,
   # get included in the version of trace viewer that ultimately gets shipped in
   # the Chrome binary if we do things this way?
   modules = [
-      'components.polymer.polymer-micro',
-      'components.polymer.polymer-mini',
-      'components.polymer.polymer',
-      'tracing.trace2html',
       'tracing.extras.importer.gzip_importer',  # Must have for all configs.
-      project.GetModuleNameForConfigName(config_name)
+      project.GetModuleNameForConfigName(config_name),
+      'tracing.trace2html'
   ]
 
   vulcanizer = project.CreateVulcanizer()
   load_sequence = vulcanizer.CalcLoadSequenceForModuleNames(modules)
 
+  print load_sequence
   scripts = []
   for trace_data in trace_data_list:
     # If the object was previously decoded from valid JSON data (e.g., in

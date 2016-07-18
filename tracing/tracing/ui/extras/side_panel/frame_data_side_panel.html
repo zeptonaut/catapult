@@ -96,6 +96,73 @@ tr.exportTo('tr.ui.e.s', function() {
     this.url = context.url;
   }
 
+  var groupFunctions = {
+    none: rows => rows,
+
+    // Group the rows according to the frame tree structure.
+    // Example: consider frame tree a(b, c(d)), where each frame has 1ms time
+    // attributed to it. The resulting table should look like:
+    //      Type     | Time | URL
+    // --------------+------+-----
+    // Frame Tree    |   4  |  a
+    // +- Frame      |   1  |  a
+    // +- Subframe   |   1  |  b
+    // +- Frame Tree |   2  |  c
+    //  +- Frame     |   1  |  c
+    //  +- Subframe  |   1  |  d
+    tree: function(rows, rowMap) {
+      // Finds the parent of a specific row. When there is conflict between the
+      // browser's dump of the frame tree and the renderers', use the browser's.
+      var getParentRow = function(row) {
+        var pivot;
+        row.contexts.forEach(function(context) {
+          if (context instanceof tr.e.chrome.FrameTreeNodeSnapshot)
+            pivot = context;
+        });
+        if (pivot && pivot.parentContext)
+          return rowMap[pivot.parentContext.guid];
+        return undefined;
+      };
+
+      var rootRows = [];
+      rows.forEach(function(row) {
+        var parentRow = getParentRow(row);
+        if (parentRow === undefined) {
+          rootRows.push(row);
+          return;
+        }
+        if (parentRow.subRows === undefined)
+          parentRow.subRows = [];
+        parentRow.subRows.push(row);
+      });
+
+      var aggregateAllDescendants = function(row) {
+        if (!row.subRows) {
+          if (getParentRow(row))
+            row.type = 'Subframe';
+          return row;
+        }
+        var result = new Row();
+        result.type = 'Frame Tree';
+        result.renderer = row.renderer;
+        result.url = row.url;
+        result.subRows = [row];
+        row.subRows.forEach(
+            subRow => result.subRows.push(aggregateAllDescendants(subRow)));
+        result.subRows.forEach(function(subRow) {
+          result.time += subRow.time;
+          result.eventsOfInterest.addEventSet(subRow.eventsOfInterest);
+        });
+        row.subRows = undefined;
+        return result;
+      };
+
+      return rootRows.map(rootRow => aggregateAllDescendants(rootRow));
+    }
+
+    // TODO(xiaochengh): Add grouping by site and probably more...
+  };
+
   Polymer({
     is: 'tr-ui-e-s-frame-data-side-panel',
     behaviors: [tr.ui.behaviors.SidePanel],

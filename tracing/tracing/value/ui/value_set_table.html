@@ -54,82 +54,80 @@ found in the LICENSE file.
 <script>
 'use strict';
 tr.exportTo('tr.ui', function() {
+
+  /**
+   * @param {!tr.v.Value} value
+   * @param {string} fieldName
+   * @param {*} defaultValue
+   * @return {*}
+   */
+  function getIterationInfoField(value, fieldName, defaultValue) {
+    var iteration = tr.v.d.IterationInfo.getFromValue(value);
+    if (!(iteration instanceof tr.v.d.IterationInfo))
+      return defaultValue;
+    return iteration[fieldName];
+  }
+
+  /**
+   * @param {!tr.v.Value} value
+   * @param {string} fieldName
+   * @return {string}
+   */
+  function getStoryGroupingKeyLabel(value, storyGroupingKey) {
+    var iteration = tr.v.d.IterationInfo.getFromValue(value);
+    if (!(iteration instanceof tr.v.d.IterationInfo))
+      return storyGroupingKey + ': undefined';
+    return storyGroupingKey + ': ' +
+      iteration.storyGroupingKeys[storyGroupingKey];
+  }
+
+  /**
+   * @param {!tr.v.Value} value
+   * @return {string}
+   */
+  var getDisplayLabel = v => getIterationInfoField(v, 'displayLabel', 'Value');
+
+  var SELECTED_VALUE_SETTINGS_KEY = 'tr-v-ui-value-set-table-value';
+  var SHOW_ALL_SETTINGS_KEY = 'tr-v-ui-value-set-table-show-all';
+
+  /**
+   * Recursively groups |values|.
+   * TODO(benjhayden): Use ES6 Maps instead of dictionaries?
+   *
+   * @param {!Array.<!tr.v.Value>} values
+   * @param {!Array.<!function(!tr.v.Value):(string|number)>} groupingCallbacks
+   * @return {!(Object|tr.v.Value)}
+   */
+  function organizeValues(values, groupingCallbacks, level) {
+    if (groupingCallbacks.length === level) {
+      // Recursion base case: there should only be a single value when we've
+      // grouped by every possible grouping.
+      if (values.length > 1) {
+        console.warn('Multiple Values with same name, benchmarkName, ' +
+                     'storyGroupingKeys, storyName, start, storysetRepeatCounter, ' +
+                     'storyRepeatCounter, and displayLabel', values);
+      }
+      return values[0];
+    }
+
+    // Group the values by the current grouping.
+    var groupedValues = tr.b.group(values, groupingCallbacks[level]);
+
+    // Skip this grouping level if it contains only a single group,
+    // but never skip the zeroth grouping level (value name) nor the last
+    // (displayLabel).
+    if (level > 0 && level < (groupingCallbacks.length - 1) &&
+        tr.b.dictionaryLength(groupedValues) === 1) {
+      return organizeValues(values, groupingCallbacks, level + 1);
+    }
+
+    // Recursively group groupedValues.
+    return tr.b.mapItems(groupedValues, function(key, groupValues) {
+      return organizeValues(groupValues, groupingCallbacks, level + 1);
+    });
+  }
+
   Polymer({
-    is: 'tr-v-ui-value-set-table',
-
-    /**
-     * @param {!tr.v.Value} value
-     * @param {string} fieldName
-     * @param {*} defaultValue
-     * @return {*}
-     */
-    function getIterationInfoField(value, fieldName, defaultValue) {
-      var iteration = tr.v.d.IterationInfo.getFromValue(value);
-      if (!(iteration instanceof tr.v.d.IterationInfo))
-        return defaultValue;
-      return iteration[fieldName];
-    }
-
-    /**
-     * @param {!tr.v.Value} value
-     * @param {string} fieldName
-     * @return {string}
-     */
-    function getStoryGroupingKeyLabel(value, storyGroupingKey) {
-      var iteration = tr.v.d.IterationInfo.getFromValue(value);
-      if (!(iteration instanceof tr.v.d.IterationInfo))
-        return storyGroupingKey + ': undefined';
-      return storyGroupingKey + ': ' +
-        iteration.storyGroupingKeys[storyGroupingKey];
-    }
-
-    /**
-     * @param {!tr.v.Value} value
-     * @return {string}
-     */
-    var getDisplayLabel = v => getIterationInfoField(v, 'displayLabel', 'Value');
-
-    var SELECTED_VALUE_SETTINGS_KEY = 'tr-v-ui-value-set-table-value';
-    var SHOW_ALL_SETTINGS_KEY = 'tr-v-ui-value-set-table-show-all';
-
-    /**
-     * Recursively groups |values|.
-     * TODO(benjhayden): Use ES6 Maps instead of dictionaries?
-     *
-     * @param {!Array.<!tr.v.Value>} values
-     * @param {!Array.<!function(!tr.v.Value):(string|number)>} groupingCallbacks
-     * @return {!(Object|tr.v.Value)}
-     */
-    function organizeValues(values, groupingCallbacks, level) {
-      if (groupingCallbacks.length === level) {
-        // Recursion base case: there should only be a single value when we've
-        // grouped by every possible grouping.
-        if (values.length > 1) {
-          console.warn('Multiple Values with same name, benchmarkName, ' +
-                       'storyGroupingKeys, storyName, start, storysetRepeatCounter, ' +
-                       'storyRepeatCounter, and displayLabel', values);
-        }
-        return values[0];
-      }
-
-      // Group the values by the current grouping.
-      var groupedValues = tr.b.group(values, groupingCallbacks[level]);
-
-      // Skip this grouping level if it contains only a single group,
-      // but never skip the zeroth grouping level (value name) nor the last
-      // (displayLabel).
-      if (level > 0 && level < (groupingCallbacks.length - 1) &&
-          tr.b.dictionaryLength(groupedValues) === 1) {
-        return organizeValues(values, groupingCallbacks, level + 1);
-      }
-
-      // Recursively group groupedValues.
-      return tr.b.mapItems(groupedValues, function(key, groupValues) {
-        return organizeValues(groupValues, groupingCallbacks, level + 1);
-      });
-    }
-
-  Polymer('tr-v-ui-value-set-table', {
     is: 'tr-v-ui-value-set-table',
 
     /**

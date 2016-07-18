@@ -143,8 +143,6 @@ tr.b.unittest.testSuite(function() {
     assert.closeTo(expected.percentile(0.9), actual.percentile(0.9), 1e-3);
   });
 
-<<<<<<< HEAD
-=======
   function addDumpWithAllocator(model, process, allocator, start) {
     var gmd = tr.model.MemoryDumpTestUtils.addGlobalMemoryDump(
         model, {ts: start});
@@ -174,6 +172,5 @@ tr.b.unittest.testSuite(function() {
     var range = tr.metrics.v8.utils.rangeForMemoryDumps(model);
     assert.isTrue(range.isEmpty);
   });
->>>>>>> master
 });
 </script>

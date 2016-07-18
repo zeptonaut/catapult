@@ -101,14 +101,9 @@ tr.exportTo('tr.metrics.sh', function() {
     // 2. If any global memory dump does not have any associated browser
     // process for some reason, associate it with an 'unknown_browser' browser
     // so that we don't lose the data.
-<<<<<<< HEAD
-    var unclassifiedGlobalDumps =
-        model.globalMemoryDumps.filter(g => !globalDumpToBrowserHelper.has(g));
-=======
     var unclassifiedGlobalDumps = skipDumpsThatDoNotIntersectRange(
         model.globalMemoryDumps.filter(g => !globalDumpToBrowserHelper.has(g)),
         opt_rangeOfInterest);
->>>>>>> master
     if (unclassifiedGlobalDumps.length > 0) {
       makeKeyUniqueAndSet(
           browserNameToGlobalDumps, 'unknown_browser', unclassifiedGlobalDumps);
@@ -117,8 +112,6 @@ tr.exportTo('tr.metrics.sh', function() {
     return browserNameToGlobalDumps;
   }
 
-<<<<<<< HEAD
-=======
   function skipDumpsThatDoNotIntersectRange(dumps, opt_range) {
     if (!opt_range)
       return dumps;
@@ -126,7 +119,6 @@ tr.exportTo('tr.metrics.sh', function() {
         d.start, d.end));
   }
 
->>>>>>> master
   function canonicalizeName(name) {
     return name.toLowerCase().replace(' ', '_');
   };
@@ -289,7 +281,6 @@ tr.exportTo('tr.metrics.sh', function() {
             componentTree.values[i].total -= tracingNode.values[i].total;
         }, values);
   }
-<<<<<<< HEAD
 
   /**
    * Build a description prefix for a memory:<browser-name>:<process-name>:
@@ -392,110 +383,6 @@ tr.exportTo('tr.metrics.sh', function() {
   ];
 
   /**
-=======
-
-  /**
-   * Build a description prefix for a memory:<browser-name>:<process-name>:
-   * process_count value.
-   *
-   * @param {!Array<string>} componentPath The underlying component path (must
-   *     be empty).
-   * @param {string} processName The canonical name of the process.
-   * @return {string} Prefix for the value's description (always
-   *     'total number of renderer processes').
-   */
-  function buildProcessCountDescriptionPrefix(componentPath, processName) {
-    if (componentPath.length > 0) {
-      throw new Error('Unexpected process count non-empty component path: ' +
-          componentPath.join(':'));
-    }
-    return 'total number of ' + convertProcessNameToUserFriendlyName(
-        processName, true /* opt_requirePlural */);
-  }
-
-  /**
-   * Build a description prefix for a memory:<browser-name>:<process-name>:
-   * reported_by_chrome:... value.
-   *
-   * @param {{
-   *     userFriendlyPropertyName: string,
-   *     userFriendlyPropertyNamePrefix: (string|undefined),
-   *     totalUserFriendlyPropertyName: (string|undefined),
-   *     componentPreposition: (string|undefined) }}
-   *     formatSpec Specification of how the property should be formatted.
-   * @param {!Array<string>} componentPath The underlying component path (e.g.
-   *     ['malloc']).
-   * @param {string} processName The canonical name of the process.
-   * @return {string} Prefix for the value's description (e.g.
-   *     'effective size of malloc in the browser process').
-   */
-  function buildChromeValueDescriptionPrefix(
-      formatSpec, componentPath, processName) {
-    var nameParts = [];
-    if (componentPath.length === 0) {
-      nameParts.push('total');
-      if (formatSpec.totalUserFriendlyPropertyName) {
-        nameParts.push(formatSpec.totalUserFriendlyPropertyName);
-      } else {
-        if (formatSpec.userFriendlyPropertyNamePrefix)
-          nameParts.push(formatSpec.userFriendlyPropertyNamePrefix);
-        nameParts.push(formatSpec.userFriendlyPropertyName);
-      }
-      nameParts.push('reported by Chrome for');
-    } else {
-      if (formatSpec.componentPreposition === undefined) {
-        // Use component name as an adjective
-        // (e.g. 'size of V8 code and metadata').
-        if (formatSpec.userFriendlyPropertyNamePrefix)
-          nameParts.push(formatSpec.userFriendlyPropertyNamePrefix);
-        nameParts.push(componentPath.join(':'));
-        nameParts.push(formatSpec.userFriendlyPropertyName);
-      } else {
-        // Use component name as a noun with a preposition
-        // (e.g. 'size of all objects allocated BY MALLOC').
-        if (formatSpec.userFriendlyPropertyNamePrefix)
-          nameParts.push(formatSpec.userFriendlyPropertyNamePrefix);
-        nameParts.push(formatSpec.userFriendlyPropertyName);
-        nameParts.push(formatSpec.componentPreposition);
-        nameParts.push(componentPath.join(':'));
-      }
-      nameParts.push('in');
-    }
-    nameParts.push(convertProcessNameToUserFriendlyName(processName));
-    return nameParts.join(' ');
-  }
-
-  // Specifications of properties reported by Chrome.
-  var CHROME_VALUE_PROPERTIES = [
-    {
-      propertyName: 'effective_size',
-      descriptionPrefixBuilder: buildChromeValueDescriptionPrefix.bind(
-          undefined, {
-            userFriendlyPropertyName: 'effective size',
-            componentPreposition: 'of'
-          })
-    },
-    {
-      propertyName: 'allocated_objects_size',
-      descriptionPrefixBuilder: buildChromeValueDescriptionPrefix.bind(
-          undefined, {
-            userFriendlyPropertyName: 'size of all objects allocated',
-            totalUserFriendlyPropertyName: 'size of all allocated objects',
-            componentPreposition: 'by'
-          })
-    },
-    {
-      propertyName: 'locked_size',
-      descriptionPrefixBuilder: buildChromeValueDescriptionPrefix.bind(
-          undefined, {
-            userFriendlyPropertyName: 'locked (pinned) size',
-            componentPreposition: 'of'
-          })
-    }
-  ];
-
-  /**
->>>>>>> master
    * Add heavy memory dump values calculated from heavy global memory dumps to
    * |values|. In particular, this function adds the following values:
    *
@@ -565,7 +452,6 @@ tr.exportTo('tr.metrics.sh', function() {
                 value: memtrackChildDump.numerics['memtrack_pss'],
                 descriptionPrefixBuilder: descriptionPrefixBuilder
               });
-<<<<<<< HEAD
             });
           }
 
@@ -593,35 +479,6 @@ tr.exportTo('tr.metrics.sh', function() {
                   buildCodeAndMetadataSizeValueDescriptionPrefix
             });
           }
-=======
-            });
-          }
-
-          // Add memory:<browser-name>:<process-name>:reported_by_chrome:v8:
-          // code_and_metadata_size when available.
-          var v8Dump = processDump.getMemoryAllocatorDumpByFullName('v8');
-          if (v8Dump !== undefined) {
-            // V8 generates bytecode when interpreting and code objects when
-            // compiling the javascript. Total code size includes the size
-            // of code and bytecode objects.
-            addProcessScalar({
-              source: 'reported_by_chrome',
-              component: ['v8'],
-              property: 'code_and_metadata_size',
-              value: v8Dump.numerics['code_and_metadata_size'],
-              descriptionPrefixBuilder:
-                  buildCodeAndMetadataSizeValueDescriptionPrefix
-            });
-            addProcessScalar({
-              source: 'reported_by_chrome',
-              component: ['v8'],
-              property: 'code_and_metadata_size',
-              value: v8Dump.numerics['bytecode_and_metadata_size'],
-              descriptionPrefixBuilder:
-                  buildCodeAndMetadataSizeValueDescriptionPrefix
-            });
-          }
->>>>>>> master
         }, function(componentTree) {}, values);
   }
 

@@ -31,6 +31,30 @@ found in the LICENSE file.
 <script>
 'use strict';
 
+function* getEventInFlowEvents(event) {
+  if (!event.inFlowEvents)
+    return;
+  yield * event.inFlowEvents;
+}
+
+function* getEventOutFlowEvents(event) {
+  if (!event.outFlowEvents)
+    return;
+  yield * event.outFlowEvents;
+}
+
+function* getEventAncestors(event) {
+  if (!event.enumerateAllAncestors)
+    return;
+  yield * event.enumerateAllAncestors();
+}
+
+function* getEventDescendents(event) {
+  if (!event.enumerateAllDescendents)
+    return;
+  yield * event.enumerateAllDescendents();
+}
+
 Polymer({
   is: 'tr-ui-a-related-events',
 
@@ -64,30 +88,6 @@ Polymer({
       }
     ];
   },
-
-  function* getEventInFlowEvents(event) {
-    if (!event.inFlowEvents)
-      return;
-    yield * event.inFlowEvents;
-  }
-
-  function* getEventOutFlowEvents(event) {
-    if (!event.outFlowEvents)
-      return;
-    yield * event.outFlowEvents;
-  }
-
-  function* getEventAncestors(event) {
-    if (!event.enumerateAllAncestors)
-      return;
-    yield * event.enumerateAllAncestors();
-  }
-
-  function* getEventDescendents(event) {
-    if (!event.enumerateAllDescendents)
-      return;
-    yield * event.enumerateAllDescendents();
-  }
 
   hasRelatedEvents: function() {
     return (this.eventGroups_ && this.eventGroups_.length > 0);

@@ -8,10 +8,16 @@ found in the LICENSE file.
 <link rel="import" href="/tracing/ui/base/deep_utils.html">
 <link rel="import" href="/tracing/value/numeric.html">
 <link rel="import" href="/tracing/value/unit.html">
+<link rel="import" href="/tracing/value/value.html">
 
 <script>
 'use strict';
 tr.exportTo('tr.v.ui', function() {
+  /**
+   * @param {undefined|tr.v.NumericValue|tr.v.Numeric} value
+   * @param {Object=} opt_config
+   * @return {string|Element}
+   */
   function createScalarSpan(value, opt_config) {
     if (value === undefined)
       return '';
@@ -21,10 +27,20 @@ tr.exportTo('tr.v.ui', function() {
 
     var span = ownerDocument.createElement('tr-v-ui-scalar-span');
 
+    if (value instanceof tr.v.NumericValue) {
+      value = value.numeric;
+      config.unit = value.unit;
+    }
+
     var numericValue;
     if (value instanceof tr.v.ScalarNumeric) {
       span.value = value;
       numericValue = value.value;
+    } else if (value instanceof tr.v.Numeric) {
+      numericValue = value.average;
+      if (numericValue === undefined)
+        return '';
+      span.setValueAndUnit(numericValue, value.unit);
     } else {
       var unit = config.unit;
       if (unit === undefined) {
@@ -128,14 +144,14 @@ Polymer({
     this.updateContent_();
   },
 
-    get context() {
-      return this.context_;
-    },
+  get context() {
+    return this.context_;
+  },
 
-    set context(context) {
-      this.context_ = context;
-      this.updateContent_();
-    },
+  set context(context) {
+    this.context_ = context;
+    this.updateContent_();
+  },
 
   get unit() {
     return this.unit_;
@@ -156,6 +172,7 @@ Polymer({
     return this.percentage_;
   },
 
+<<<<<<< HEAD
   set percentage(percentage) {
     this.percentage_ = percentage;
     this.updateSparkline_();

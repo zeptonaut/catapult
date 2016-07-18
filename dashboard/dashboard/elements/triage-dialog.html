@@ -116,6 +116,21 @@ on an alert, or clicks on a "triage" button on the alerts page. It allows the
       </div>
     </div>
 
+    <div id="toasts" hidden>
+      <div id="jobsubmitted">
+        Bug <a href="http://crbug.com/{{lastSubmittedBugId}}"
+               target="_blank">{{lastSubmittedBugId}}</a> created/updated.
+        <template if="{{lastSubmittedTryJobId}}">
+          Bisect job <a href="{{lastSubmittedTryJobUrl}}"
+                        target="_blank">{{lastSubmittedTryJobId}}</a> started.
+        </template>
+        <template if="{{lastSubmittedTryJobError}}">
+          <span class="error">No bisect automatically started.
+                              {{lastSubmittedTryJobError}}</span>
+        </template>
+      </div>
+    </div>
+
   </template>
   <script>
     'use strict';

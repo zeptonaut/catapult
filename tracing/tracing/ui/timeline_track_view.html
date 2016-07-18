@@ -384,22 +384,69 @@ Polymer({
         e.stopPropagation();
       }
     });
+=======
+      addBinding({
+        keyCode: 'p'.charCodeAt(0),
+        callback: function(e) {
+          this.selectPowerSamplesInCurrentTimeRange_();
+          e.stopPropagation();
+        }
+      });
 
-    addBinding({
-      keyCode: 'G'.charCodeAt(0),
-      callback: function(e) {
-        this.onGridToggle_(false);
-        e.stopPropagation();
-      }
-    });
+      addBinding({
+        keyCode: 'h'.charCodeAt(0),
+        callback: function(e) {
+          this.toggleHighDetails_();
+          e.stopPropagation();
+        }
+      });
+    },
 
-    addBinding({
-      keyCodes: ['W'.charCodeAt(0), '<'.charCodeAt(0)],
-      callback: function(e) {
-        this.zoomBy_(10, true);
-        e.stopPropagation();
-      }
-    });
+    get viewWidth_() {
+      return this.modelTrackContainer_.canvas.clientWidth;
+    },
+
+    addKeyDownHotKeys_: function() {
+      var addBinding = function(dict) {
+        dict.eventType = 'keydown';
+        dict.useCapture = false;
+        dict.thisArg = this;
+        var binding = new tr.ui.b.HotKey(dict);
+        this.$.hotkey_controller.addHotKey(binding);
+      }.bind(this);
+
+      addBinding({
+        keyCode: 37, // Left arrow.
+        callback: function(e) {
+          var curSel = this.brushingStateController_.selection;
+          var sel = this.viewport.getShiftedSelection(curSel, -1);
+
+          if (sel) {
+            this.brushingStateController.changeSelectionFromTimeline(sel);
+            this.panToSelection();
+          } else {
+            this.queueSmoothPan_(this.viewWidth_ * 0.3, 0);
+          }
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      });
+
+      addBinding({
+        keyCode: 'G'.charCodeAt(0),
+        callback: function(e) {
+          this.onGridToggle_(false);
+          e.stopPropagation();
+        }
+      });
+
+      addBinding({
+        keyCodes: ['W'.charCodeAt(0), '<'.charCodeAt(0)],
+        callback: function(e) {
+          this.zoomBy_(10, true);
+          e.stopPropagation();
+        }
+      });
 
     addBinding({
       keyCodes: ['S'.charCodeAt(0), 'O'.charCodeAt(0)],
@@ -416,6 +463,16 @@ Polymer({
         e.stopPropagation();
       }
     });
+
+    var curSelection = this.brushingStateController_.selection;
+    if (!curSelection.length || !tr.b.getOnlyElement(curSelection).title)
+      return;
+
+    var selection = new tr.model.EventSet();
+    var filter = new tr.c.ExactTitleFilter(
+        tr.b.getOnlyElement(curSelection).title);
+    this.modelTrack_.addAllEventsMatchingFilterToSelection(filter,
+                                                            selection);
 
     addBinding({
       keyCodes: ['d'.charCodeAt(0), 'e'.charCodeAt(0)],

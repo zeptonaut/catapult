@@ -87,9 +87,17 @@ Polymer({
   is: 'tr-ui-a-single-power-sample-sub-view',
   behaviors: [tr.ui.analysis.behaviors.AnalysisSubView],
 
+<<<<<<< HEAD
   ready: function() {
     this.currentSelection_ = undefined;
   },
+=======
+  Polymer({
+    ready: function() {
+      this.currentSelection_ = undefined;
+
+    },
+>>>>>>> master
 
   get selection() {
     return this.currentSelection_;
@@ -100,6 +108,7 @@ Polymer({
     this.updateContents_();
   },
 
+<<<<<<< HEAD
   updateContents_: function() {
     if (this.selection.length != 1)
       throw 'Cannot pass multiple samples to sample table.';
@@ -107,3 +116,13 @@ Polymer({
   }
 });
 </script>
+=======
+    updateContents_: function() {
+      if (this.selection.length != 1)
+        throw 'Cannot pass multiple samples to sample table.';
+      this.$.samplesTable.sample = this.selection[0];
+    }
+  });
+  </script>
+</polymer-element>
+>>>>>>> master

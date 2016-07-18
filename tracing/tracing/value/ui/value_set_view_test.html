@@ -87,7 +87,7 @@ tr.b.unittest.testSuite(function() {
         view, function(element) {
           return element.tagName.toLowerCase() === 'tr-ui-a-tab-view';
         });
-    assert.isTrue(tabView.children[0].selected);
+    assert.isTrue(Polymer.dom(tabView).children[0].selected);
     assert.isTrue(tabView.tabsHidden);
   });
 
@@ -114,7 +114,7 @@ tr.b.unittest.testSuite(function() {
         view, function(element) {
           return element.tagName.toLowerCase() === 'tr-ui-a-tab-view';
         });
-    assert.isTrue(tabView.children[0].selected);
+    assert.isTrue(Polymer.dom(tabView).children[0].selected);
     assert.isFalse(tabView.tabsHidden);
   });
 
@@ -141,11 +141,11 @@ tr.b.unittest.testSuite(function() {
         view, function(element) {
           return element.tagName.toLowerCase() === 'tr-ui-a-tab-view';
         });
-    assert.isTrue(tabView.children[1].selected);
+    assert.isTrue(Polymer.dom(tabView).children[1].selected);
     assert.isFalse(tabView.tabsHidden);
 
     // Test that selecting the Table view changes the setting.
-    tabView.selectedTab = tabView.children[0];
+    tabView.selectedTab = Polymer.dom(tabView).children[0];
     return new Promise(function(resolve, reject) {
       assert.strictEqual(
           tr.b.Settings.get(tr.v.ui.SELECTED_TAB_SETTINGS_KEY),
@@ -177,7 +177,7 @@ tr.b.unittest.testSuite(function() {
         view, function(element) {
           return element.tagName.toLowerCase() === 'tr-ui-a-tab-view';
         });
-    assert.isTrue(tabView.children[0].selected);
+    assert.isTrue(Polymer.dom(tabView).children[0].selected);
     assert.isTrue(tabView.tabsHidden);
   });
 });

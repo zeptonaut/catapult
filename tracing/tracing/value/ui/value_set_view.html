@@ -184,31 +184,33 @@ tr.exportTo('tr.v.ui', function() {
   Polymer({
     is: 'tr-v-ui-value-set-view',
 
+    listeners: {
+      'tabView.selected-tab-change': 'oneSelectedTabChange_'
+    },
+
     ready: function() {
-      this.$.container.addEventListener(
-        'selected-tab-change', this.onSelectedTabChange_.bind(this));
       this.brushingStateController = new NullBrushingStateController();
     },
 
     attached: function() {
       this.brushingStateController.parentController =
-        tr.c.BrushingStateController.getControllerForElement(this.parentNode);
+          tr.c.BrushingStateController.getControllerForElement(this.parentNode);
     },
 
     onSelectedTabChange_: function() {
-      if (!this.$.container.selectedTab)
+      if (!this.$.tabView.selectedTab)
         return;
 
       tr.b.Settings.set(
           SELECTED_TAB_SETTINGS_KEY,
-          this.$.container.selectedTab.tagName.toLowerCase());
+          this.$.tabView.selectedTab.tagName.toLowerCase());
     },
 
     /**
      * @param {!tr.v.ValueSet} values
      */
     set values(values) {
-      this.$.container.textContent = '';
+      this.$.tabView.clearSubViews();
 
       var initialTabElementName = tr.b.Settings.get(
           SELECTED_TAB_SETTINGS_KEY, undefined);
@@ -221,18 +223,15 @@ tr.exportTo('tr.v.ui', function() {
         view.values = values;
 
         if (elementName.toLowerCase() === initialTabElementName)
-          Polymer.dom(view).setAttribute('selected', true);
+          this.$.tabView.selectedTab = view;
 
+        <!-- TODO(charliea): Is this necessary? -->
         Polymer.dom(view).setAttribute('tab-label', view.tabLabel);
-
-        Polymer.dom(this.$.container).appendChild(view);
+        Polymer.dom(this.$.tabView).appendChild(view);
       }, this);
 
-      if (Polymer.dom(this.$.container).children.length === 1) {
-        this.$.container.tabsHidden = true;
-      }
-      if (this.$.container.selectedTab === undefined) {
-        Polymer.dom(this.$.container).children[0].setAttribute('selected', true);
+      if (tabView.tabs.length === 1) {
+        this.$.tabView.set('tabsHidden', true);
       }
     }
   });
@@ -250,7 +249,6 @@ tr.exportTo('tr.v.ui', function() {
   }
 
   return {
-    registerValueSetView: registerValueSetView,
     registerValueSetView: registerValueSetView,
     SELECTED_TAB_SETTINGS_KEY: SELECTED_TAB_SETTINGS_KEY
   };

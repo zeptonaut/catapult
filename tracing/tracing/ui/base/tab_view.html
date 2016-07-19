@@ -5,6 +5,8 @@ Use of this source code is governed by a BSD-style license that can be
 found in the LICENSE file.
 -->
 
+<link rel="import" href="/tracing/ui/analysis/analysis_sub_view.html">
+
 <!--
 @fileoverview A series of tabs for the analysis view that controls which
 analysis sub-view is being displayed.
@@ -126,14 +128,6 @@ Polymer({
   },
 
   addSubView: function(subView) {
-    if (!(subView instanceof HTMLElement) ||
-        !subView.behaviors ||
-        subView.behaviors.indexOf(
-            tr.ui.analysis.behaviors.AnalysisSubView) < 0) {
-      throw new Error('Sub-view being added must be a registered Polymer ' +
-          'element with the sub-view behavior');
-    }
-
     if (!this.selectedSubView_)
       this.selectedSubView = subView;
 

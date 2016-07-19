@@ -81,14 +81,14 @@ tr.b.unittest.testSuite(function() {
     values.addValue(foo);
 
     this.addHTMLOutput(view);
-    // view.values = values;
+    view.values = values;
 
-    // var tabView = tr.b.findDeepElementMatchingPredicate(
-    //     view, function(element) {
-    //       return element.tagName.toLowerCase() === 'tr-ui-a-tab-view';
-    //     });
-    // assert.equal(tabView.selectedSubView, view);
-    // assert.isFalse(tabView.get('tabsHidden'));
+    var tabView = tr.b.findDeepElementMatchingPredicate(
+        view, function(element) {
+          return element.tagName.toLowerCase() === 'tr-ui-a-tab-view';
+        });
+    assert.equal(tabView.selectedSubView, tabView.get('tabs.0'));
+    assert.isTrue(tabView.get('tabsHidden'));
   });
 
   test('instantiate1', function() {
@@ -114,8 +114,8 @@ tr.b.unittest.testSuite(function() {
         view, function(element) {
           return element.tagName.toLowerCase() === 'tr-ui-a-tab-view';
         });
-    assert.isTrue(Polymer.dom(tabView).children[0].selected);
-    assert.isFalse(tabView.tabsHidden);
+    assert.equal(tabView.selectedSubView, tabView.get('tabs.0'));
+    assert.isFalse(tabView.get('tabsHidden'));
   });
 
   test('instantiate2', function() {
@@ -141,11 +141,11 @@ tr.b.unittest.testSuite(function() {
         view, function(element) {
           return element.tagName.toLowerCase() === 'tr-ui-a-tab-view';
         });
-    assert.isTrue(Polymer.dom(tabView).children[1].selected);
-    assert.isFalse(tabView.tabsHidden);
+    assert.equal(tabView.selectedSubView, tabView.get('tabs.1'));
+    assert.isFalse(tabView.get('tabsHidden'));
 
     // Test that selecting the Table view changes the setting.
-    tabView.selectedTab = Polymer.dom(tabView).children[0];
+    tabView.selectedTab = tabView.tabs[0];
     return new Promise(function(resolve, reject) {
       assert.strictEqual(
           tr.b.Settings.get(tr.v.ui.SELECTED_TAB_SETTINGS_KEY),
@@ -177,8 +177,8 @@ tr.b.unittest.testSuite(function() {
         view, function(element) {
           return element.tagName.toLowerCase() === 'tr-ui-a-tab-view';
         });
-    assert.isTrue(Polymer.dom(tabView).children[0].selected);
-    assert.isTrue(tabView.tabsHidden);
+    assert.equal(tabView.selectedSubView, tabView.get('tabs.0'));
+    assert.isTrue(tabView.get('tabsHidden'));
   });
 });
 </script>

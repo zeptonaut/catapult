@@ -6,11 +6,12 @@ found in the LICENSE file.
 -->
 
 <link rel="import" href="/tracing/ui/base/tab_view.html">
+<link rel="import" href="/tracing/ui/analysis/analysis_sub_view.html">
 <link rel="import" href="/tracing/ui/brushing_state_controller.html">
 
 <dom-module id="tr-v-ui-value-set-view">
   <template>
-    <tr-ui-a-tab-view id="container"></tr-ui-a-tab-view>
+    <tr-ui-a-tab-view id="tabView"></tr-ui-a-tab-view>
   </template>
 </dom-module>
 
@@ -110,7 +111,7 @@ tr.exportTo('tr.v.ui', function() {
     addAllEventsMatchingFilterToSelectionAsTask: function(filter, selection) {
       if (this.parentController) {
         this.parentController.addAllEventsMatchingFilterToSelectionAsTask(
-            filter, selection);
+          filter, selection);
       }
     },
 
@@ -152,7 +153,7 @@ tr.exportTo('tr.v.ui', function() {
     changeSelectionFromRequestSelectionChangeEvent: function(selection) {
       if (this.parentController) {
         this.parentController.changeSelectionFromRequestSelectionChangeEvent(
-            selection);
+          selection);
       }
     },
 
@@ -183,9 +184,10 @@ tr.exportTo('tr.v.ui', function() {
 
   Polymer({
     is: 'tr-v-ui-value-set-view',
+    behaviors: [tr.ui.analysis.behaviors.AnalysisSubView],
 
     listeners: {
-      'tabView.selected-tab-change': 'oneSelectedTabChange_'
+      'tabView.selected-tab-change': 'onSelectedTabChange_'
     },
 
     ready: function() {
@@ -198,12 +200,12 @@ tr.exportTo('tr.v.ui', function() {
     },
 
     onSelectedTabChange_: function() {
-      if (!this.$.tabView.selectedTab)
+      if (!this.$.tabView.selectedSubView)
         return;
 
       tr.b.Settings.set(
           SELECTED_TAB_SETTINGS_KEY,
-          this.$.tabView.selectedTab.tagName.toLowerCase());
+          this.$.tabView.selectedSubView.tagName.toLowerCase());
     },
 
     /**
@@ -223,16 +225,15 @@ tr.exportTo('tr.v.ui', function() {
         view.values = values;
 
         if (elementName.toLowerCase() === initialTabElementName)
-          this.$.tabView.selectedTab = view;
+          this.$.tabView.selectedSubView = view;
 
-        <!-- TODO(charliea): Is this necessary? -->
-        Polymer.dom(view).setAttribute('tab-label', view.tabLabel);
-        Polymer.dom(this.$.tabView).appendChild(view);
+        this.$.tabView.addSubView(view);
       }, this);
 
-      if (tabView.tabs.length === 1) {
+      // TODO(charliea): If TabView were structured correctly, this could almost
+      // certainly be done with attribute binding in the HTML template.
+      if (this.$.tabView.tabs.length === 1)
         this.$.tabView.set('tabsHidden', true);
-      }
     }
   });
 

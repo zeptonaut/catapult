@@ -17,32 +17,77 @@ found in the LICENSE file.
 
 tr.exportTo('tr.metrics.sh', function() {
 
-  var IDEAL_FRAME_RATE_FPS = 60;
-  var IDEAL_FRAME_DURATION_MS = tr.v.convertUnit(1.0 / IDEAL_FRAME_RATE_FPS,
-      tr.v.UnitScale.Metric.NONE, tr.v.UnitScale.Metric.MILLI);
+  // A Macbook Pro battery in August 2016 has about 280,000J of energy in it.
+  // and uses approximately around .015J per second of being active. A range
+  // from 1e-6 to 1e7 would allow us to capture energy measurements from as
+  // small as 100us of MBP energy consumption to 100x the current battery life
+  // of a MBP.
+  var ENERGY_NUMERIC_BUILDER = tr.v.NumericBuilder.createExponential(
+      tr.v.Unit.byName.energyInJoules_smallerIsBetter,
+      tr.b.Range.fromExplicitRange(1e-6, 1e7));
+
+  // A Macbook Pro in August 2016 consumes somewhere between 15mW and 45mW. A
+  // numeric range from 1mW to 1000mW should give us plenty of breathing room.
+  var POWER_NUMERIC_BUILDER = tr.v.NumericBuilder.createExponential(
+      tr.v.Unit.byName.powerInWatts_smallerIsBetter,
+      tr.b.Range.fromExplicitRange(.1, 1000));
+
+  /** Returns the total energy consumed over the trace. */
+  function getTotalEnergy(model) {
+    return model.device.powerSeries.getEnergyConsumedInJ(
+        model.device.powerSeries.bounds.min,
+        model.device.powerSeries.bounds.max);
+  }
+
+  function addAveragePower(valueList, model) {
+    var averagePowerNumeric = POWER_NUMERIC_BUILDER.build();
+    averagePowerNumeric.add(
+        getTotalEnergy(model) / model.device.powerSeries.bounds.range);
+
+    valueList.addValue(new tr.v.NumericValue(
+        'power_avg', averagePowerNumeric,
+        {description: 'Average Power'}));
+  }
+
+  function addTotalEnergyConsumed(valueList, model) {
+    var totalEnergyNumeric = ENERGY_NUMERIC_BUILDER.build();
+    totalEnergyNumeric.add(getTotalEnergy(model));
+
+    valueList.addValue(new tr.v.NumericValue(
+        'energy_consumed_total', totalEnergyNumeric,
+        {description: 'Total energy consumed'}));
+  }
+
+
+  var IDEAL_FRAME_RATE = 60;
+  var IDEAL_FRAME_DURATION = 1000 / IDEAL_FRAME_RATE;
+
 
   function energyConsumedPerFrame(valueList, model) {
-    var frameEnergyConsumedInJ = tr.v.NumericBuilder.createLinear(
+    var frameEnergyConsumed = tr.v.NumericBuilder.createLinear(
         tr.v.Unit.byName.energyInJoules_smallerIsBetter,
         tr.b.Range.fromExplicitRange(0, .5), 20).build();
     var frameStartTs = parseFloat(model.device.powerSeries.samples[0].start);
     while (model.device.powerSeries.getSamplesWithinRange(
-        frameStartTs, frameStartTs + IDEAL_FRAME_DURATION_MS).length) {
+        frameStartTs, frameStartTs + IDEAL_FRAME_DURATION).length) {
       var currentFrameEnergy = model.device.powerSeries.getEnergyConsumedInJ(
-          frameStartTs, frameStartTs + IDEAL_FRAME_DURATION_MS);
-      frameStartTs += IDEAL_FRAME_DURATION_MS;
-      frameEnergyConsumedInJ.add(currentFrameEnergy);
+          frameStartTs, frameStartTs + IDEAL_FRAME_DURATION);
+      frameStartTs += IDEAL_FRAME_DURATION;
+      frameEnergyConsumed.add(currentFrameEnergy);
     }
 
     valueList.addValue(new tr.v.NumericValue(
-        'energy_consumed_per_frame', frameEnergyConsumedInJ,
+        'energy_consumed_per_frame', frameEnergyConsumed,
         {description: 'Energy consumption per frame in joules'}));
   }
+
 
   function powerMetric(valueList, model) {
     if (!model.device.powerSeries)
       return;
 
+    addAveragePower(valueList, model);
+    addTotalEnergyConsumed(valueList, model);
     energyConsumedPerFrame(valueList, model);
   }
 

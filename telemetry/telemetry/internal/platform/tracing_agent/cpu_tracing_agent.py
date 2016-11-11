@@ -12,7 +12,6 @@ from py_trace_event import trace_time
 from telemetry.internal.platform import tracing_agent
 from telemetry.timeline import trace_data
 
-
 def _ParsePsProcessString(line):
   """Parses a process line from the output of `ps`.
 
@@ -64,11 +63,7 @@ class ProcessCollector(object):
       name), pCpu' (a float for the percent CPU load incurred by the process),
       and 'pMem' (a float for the percent memory load caused by the process).
     """
-    proc_strings = self._GetProcessesAsStrings()
-    return [
-        self._ParseProcessString(proc_string) for proc_string in proc_strings
-    ]
-
+    raise NotImplementedError
 
 class WindowsProcessCollector(ProcessCollector):
   """Class for collecting information about processes on Windows.
@@ -77,7 +72,7 @@ class WindowsProcessCollector(ProcessCollector):
   '3644      1724   chrome#1                 8           84497'
   '3644      832    chrome#2                 4           34872'
   """
-  _GET_PROCESSES_SHELL_COMMAND = [
+  _GET_PERF_DATA_SHELL_COMMAND = [
     'wmic',
     'path', # Retrieve a WMI object from the following path.
     'Win32_PerfFormattedData_PerfProc_Process', # Contains process perf data.
@@ -85,7 +80,14 @@ class WindowsProcessCollector(ProcessCollector):
     'CreatingProcessID,IDProcess,Name,PercentProcessorTime,WorkingSet'
   ]
 
-  _GET_PHYSICAL_MEMORY_BYTES_SHELL_COMMAND = [
+  _GET_PROCESSES_SHELL_COMMAND = [
+    'wmic',
+    'Process',
+    'get',
+    'ProcessID,CommandLine'
+  ]
+
+  _GET_FULL_COMMANDS_SHELL_COMMAND = [
     'wmic',
     'ComputerSystem',
     'get',
@@ -105,6 +107,19 @@ class WindowsProcessCollector(ProcessCollector):
     # of time.
     self._GetProcessesAsStrings()
 
+  def GetProcesses(self):
+    # Skip the header and total rows and strip the trailing newline.
+    proc_strings = subprocess.check_output(
+        self._GET_PROCESSES_SHELL_COMMAND).strip().split('\n')[2:]
+    # Skip the header row and strip the trailing newline.
+    command_strings = subprocess.check_output(
+        self._GET_FULL_COMMANDS_SHELL_COMMAND).strip().split('\n')[1:]
+    
+    return [
+        self._ParseProcessString(proc_string) for proc_string in proc_strings
+    ]
+
+
   def _GetPhysicalMemoryBytes(self):
     """Returns the number of bytes of physical memory on the computer."""
     raw_output = subprocess.check_output(
@@ -113,9 +128,7 @@ class WindowsProcessCollector(ProcessCollector):
     return int(raw_output.strip().split('\n')[1])
 
   def _GetProcessesAsStrings(self):
-    # Skip the header and total rows and strip the trailing newline.
-    return subprocess.check_output(
-        self._GET_PROCESSES_SHELL_COMMAND).strip().split('\n')[2:]
+    
 
   def _ParseProcessString(self, proc_string):
     assert self._physicalMemoryBytes, 'Must call Init() before using collector'
@@ -162,12 +175,12 @@ class LinuxProcessCollector(ProcessCollector):
     'pcpu,pmem,pid,ppid,cmd'
   ]
 
-  def _GetProcessesAsStrings(self):
+  def GetProcesses(self):
     # Skip the header row and strip the trailing newline.
-    return subprocess.check_output(self._SHELL_COMMAND).strip().split('\n')[1:]
-
-  def _ParseProcessString(self, proc_string):
-    return _ParsePsProcessString(proc_string)
+    proc_strings = subprocess.check_output(self._SHELL_COMMAND).strip().split('\n')[1:]
+    return [
+        _ParsePsProcessString(proc_string) for proc_string in proc_strings
+    ]
 
 
 class MacProcessCollector(ProcessCollector):
@@ -186,12 +199,12 @@ class MacProcessCollector(ProcessCollector):
     '%cpu %mem pid ppid command' # Put the command last to avoid truncation.
   ]
 
-  def _GetProcessesAsStrings(self):
+  def GetProcesses(self):
     # Skip the header row and strip the trailing newline.
-    return subprocess.check_output(self._SHELL_COMMAND).strip().split('\n')[1:]
-
-  def _ParseProcessString(self, proc_string):
-    return _ParsePsProcessString(proc_string)
+    proc_strings = subprocess.check_output(self._SHELL_COMMAND).strip().split('\n')[1:]
+    return [
+        _ParsePsProcessString(proc_string) for proc_string in proc_strings
+    ]
 
 
 class CpuTracingAgent(tracing_agent.TracingAgent):

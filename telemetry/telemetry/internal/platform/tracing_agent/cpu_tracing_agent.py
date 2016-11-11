@@ -12,6 +12,7 @@ from py_trace_event import trace_time
 from telemetry.internal.platform import tracing_agent
 from telemetry.timeline import trace_data
 
+
 def _ParsePsProcessString(line):
   """Parses a process line from the output of `ps`.
 
@@ -63,7 +64,11 @@ class ProcessCollector(object):
       name), pCpu' (a float for the percent CPU load incurred by the process),
       and 'pMem' (a float for the percent memory load caused by the process).
     """
-    raise NotImplementedError
+    proc_strings = self._GetProcessesAsStrings()
+    return [
+        self._ParseProcessString(proc_string) for proc_string in proc_strings
+    ]
+
 
 class WindowsProcessCollector(ProcessCollector):
   """Class for collecting information about processes on Windows.
@@ -80,14 +85,14 @@ class WindowsProcessCollector(ProcessCollector):
     'CreatingProcessID,IDProcess,Name,PercentProcessorTime,WorkingSet'
   ]
 
-  _GET_PROCESSES_SHELL_COMMAND = [
+  _GET_COMMANDS_SHELL_COMMAND = [
     'wmic',
     'Process',
     'get',
-    'ProcessID,CommandLine'
+    'CommandLine,ProcessID'
   ]
 
-  _GET_FULL_COMMANDS_SHELL_COMMAND = [
+  _GET_PHYSICAL_MEMORY_BYTES_SHELL_COMMAND = [
     'wmic',
     'ComputerSystem',
     'get',
@@ -108,17 +113,17 @@ class WindowsProcessCollector(ProcessCollector):
     self._GetProcessesAsStrings()
 
   def GetProcesses(self):
-    # Skip the header and total rows and strip the trailing newline.
-    proc_strings = subprocess.check_output(
-        self._GET_PROCESSES_SHELL_COMMAND).strip().split('\n')[2:]
-    # Skip the header row and strip the trailing newline.
-    command_strings = subprocess.check_output(
-        self._GET_FULL_COMMANDS_SHELL_COMMAND).strip().split('\n')[1:]
-    
-    return [
-        self._ParseProcessString(proc_string) for proc_string in proc_strings
-    ]
+    processes = super(WindowsProcessCollector, self).GetProcesses()
 
+    # On Windows, the absolute minimal name of the process is given
+    # (e.g. "python" for Telemetry). In order to make this more useful, we check
+    # if a more descriptive command is available for each PID and use that
+    # command if it is.
+    pid_to_command_dict = _GetPidToCommandDict()
+    for process in processes:
+      process.name = pid_to_command_dict.get(process.pid, process.name)
+
+    return processes
 
   def _GetPhysicalMemoryBytes(self):
     """Returns the number of bytes of physical memory on the computer."""
@@ -126,9 +131,6 @@ class WindowsProcessCollector(ProcessCollector):
         self._GET_PHYSICAL_MEMORY_BYTES_SHELL_COMMAND)
     # The bytes of physical memory is on the second row (after the header row).
     return int(raw_output.strip().split('\n')[1])
-
-  def _GetProcessesAsStrings(self):
-    
 
   def _ParseProcessString(self, proc_string):
     assert self._physicalMemoryBytes, 'Must call Init() before using collector'
@@ -161,6 +163,23 @@ class WindowsProcessCollector(ProcessCollector):
       'pMem': percent_memory
     }
 
+  def _GetPidToCommandDict(self):
+    """Returns a dictionary from the PID of a process to the full command used
+    to launch that process.
+    """
+    # Skip the header row and strip the trailing newline.
+    command_strings = subprocess.check_output(
+        self._GET_COMMANDS_SHELL_COMMAND).strip().split('\n')[1:]
+
+    for command_string in command_strings:
+      command_string = command_string.strip()
+
+
+    return { _ProcessCommandStirng(x) in y }
+    for command_string in command_strings:
+
+
+
 class LinuxProcessCollector(ProcessCollector):
   """Class for collecting information about processes on Linux.
 
@@ -175,12 +194,12 @@ class LinuxProcessCollector(ProcessCollector):
     'pcpu,pmem,pid,ppid,cmd'
   ]
 
-  def GetProcesses(self):
+  def _GetProcessesAsStrings(self):
     # Skip the header row and strip the trailing newline.
-    proc_strings = subprocess.check_output(self._SHELL_COMMAND).strip().split('\n')[1:]
-    return [
-        _ParsePsProcessString(proc_string) for proc_string in proc_strings
-    ]
+    return subprocess.check_output(self._SHELL_COMMAND).strip().split('\n')[1:]
+
+  def _ParseProcessString(self, proc_string):
+    return _ParsePsProcessString(proc_string)
 
 
 class MacProcessCollector(ProcessCollector):
@@ -199,12 +218,12 @@ class MacProcessCollector(ProcessCollector):
     '%cpu %mem pid ppid command' # Put the command last to avoid truncation.
   ]
 
-  def GetProcesses(self):
+  def _GetProcessesAsStrings(self):
     # Skip the header row and strip the trailing newline.
-    proc_strings = subprocess.check_output(self._SHELL_COMMAND).strip().split('\n')[1:]
-    return [
-        _ParsePsProcessString(proc_string) for proc_string in proc_strings
-    ]
+    return subprocess.check_output(self._SHELL_COMMAND).strip().split('\n')[1:]
+
+  def _ParseProcessString(self, proc_string):
+    return _ParsePsProcessString(proc_string)
 
 
 class CpuTracingAgent(tracing_agent.TracingAgent):

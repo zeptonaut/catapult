@@ -82,7 +82,7 @@ class PageTestUnitTest(page_test_test_case.PageTestTestCase):
         measurement, story_set, options=self._options)
     self.assertEquals(0, len(all_results.failures))
 
-  # https://github.com/catapult-project/catapult/issues/3099 (Android)
+  # https://github.com/catapult-project/catapult/issues/3099
   @decorators.Disabled('android')
   def testGotQueryParams(self):
     story_set = self.CreateStorySetFromFileInUnittestDataDir(

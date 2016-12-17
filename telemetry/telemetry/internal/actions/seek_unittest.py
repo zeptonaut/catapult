@@ -31,7 +31,7 @@ class SeekActionTest(tab_test_case.TabTestCase):
 
   # https://github.com/catapult-project/catapult/issues/3099 (Android)
   # crbug.com/418577 (Linux)
-  @decorators.Disabled('android', 'linux')  # crbug.com/418577
+  @decorators.Disabled('android', 'linux')
   def testSeekWithVideoSelector(self):
     """Tests that Seek action seeks video element matching selector."""
     action = seek.SeekAction(seconds=1, selector='#video_1',

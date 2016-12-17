@@ -10,7 +10,6 @@ import py_utils
 
 
 class InspectorRuntimeTest(tab_test_case.TabTestCase):
-
   # https://github.com/catapult-project/catapult/issues/3099
   @decorators.Disabled('android')
   def testRuntimeEvaluateSimple(self):

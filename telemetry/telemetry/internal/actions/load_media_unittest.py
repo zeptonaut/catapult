@@ -51,7 +51,9 @@ class LoadMediaActionTest(tab_test_case.TabTestCase):
     self.assertFalse(self.eventFired('#video_1', 'canplaythrough'))
     self.assertTrue(self.eventFired('#audio_1', 'canplaythrough'))
 
-  @decorators.Disabled('linux')  # crbug.com/418577
+  # https://github.com/catapult-project/catapult/issues/3099 (Android)
+  # crbug.com/418577 (Linux)
+  @decorators.Disabled('android', 'linux')
   def testLoadWithAllSelector(self):
     """Both elements are loaded with selector='all'."""
     action = LoadMediaAction(selector='all', timeout_in_seconds=5)

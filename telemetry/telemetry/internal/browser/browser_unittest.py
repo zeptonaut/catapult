@@ -92,6 +92,8 @@ class BrowserTest(browser_test_case.BrowserTestCase):
     crash_minidump_path = self._browser.GetMostRecentMinidumpPath()
     self.assertIsNotNone(crash_minidump_path)
 
+  # https://github.com/catapult-project/catapult/issues/3099
+  @decorators.Disabled('android')
   def testGetSystemInfo(self):
     if not self._browser.supports_system_info:
       logging.warning(

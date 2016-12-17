@@ -29,7 +29,9 @@ class SeekActionTest(tab_test_case.TabTestCase):
     self.assertTrue(self._tab.EvaluateJavaScript(VIDEO_1_SEEKED_CHECK))
     self.assertFalse(self._tab.EvaluateJavaScript(AUDIO_1_SEEKED_CHECK))
 
-  @decorators.Disabled('linux')  # crbug.com/418577
+  # https://github.com/catapult-project/catapult/issues/3099 (Android)
+  # crbug.com/418577 (Linux)
+  @decorators.Disabled('android', 'linux')  # crbug.com/418577
   def testSeekWithVideoSelector(self):
     """Tests that Seek action seeks video element matching selector."""
     action = seek.SeekAction(seconds=1, selector='#video_1',

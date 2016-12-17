@@ -184,6 +184,8 @@ class ActualPageRunEndToEndTests(unittest.TestCase):
     self.assertEquals(1, len(results.failures))
     self.assertFormattedExceptionIsEmpty()
 
+  # https://github.com/catapult-project/catapult/issues/3099 (Android)
+  @decorators.Disabled('android')
   def testNeedsBrowserRestartAfterEachPage(self):
     self.CaptureFormattedException()
     story_set = story.StorySet()
@@ -428,6 +430,8 @@ class ActualPageRunEndToEndTests(unittest.TestCase):
     results = results_options.CreateResults(EmptyMetadataForTest(), options)
     story_runner.Run(test, story_set, options, results)
 
+  # https://github.com/catapult-project/catapult/issues/3099 (Android)
+  @decorators.Disabled('android')
   def testRunPageWithStartupUrl(self):
     num_times_browser_closed = [0]
 
@@ -468,6 +472,8 @@ class ActualPageRunEndToEndTests(unittest.TestCase):
     self.assertEquals(num_times_browser_closed[0], 2)
 
   # Ensure that story_runner calls cleanUp when a page run fails.
+  # https://github.com/catapult-project/catapult/issues/3099 (Android)
+  @decorators.Disabled('android')
   def testCleanUpPage(self):
     story_set = story.StorySet()
     page = page_module.Page(
@@ -589,6 +595,8 @@ class ActualPageRunEndToEndTests(unittest.TestCase):
                      max_failures=max_failures)
     return results
 
+  # https://github.com/catapult-project/catapult/issues/3099 (Android)
+  @decorators.Disabled('android')
   def testSingleTabMeansCrashWillCauseFailureValue(self):
     self.CaptureFormattedException()
 

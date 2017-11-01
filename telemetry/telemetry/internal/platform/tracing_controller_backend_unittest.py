@@ -6,6 +6,7 @@ import gc
 import platform as _platform
 import unittest
 
+from battor import battor_error
 from telemetry import decorators
 from telemetry.internal.platform import linux_based_platform_backend
 from telemetry.internal.platform import tracing_agent
@@ -85,6 +86,13 @@ class FakeTracingAgentNoStartAndClockSync(FakeTracingAgentBase):
   def __init__(self, platform):
     super(FakeTracingAgentNoStartAndClockSync, self).__init__(
         platform, start=False, clock_sync=True)
+
+class BattOrTracingAgentStartTracingThrows(FakeTracingAgentBase):
+  def __init__(self, platform):
+    super(BattOrTracingAgentStartTracingThrows, self).__init__(platform)
+
+  def StartAgentTracing(self, config, timeout):
+    raise battor_error.BattOrError()
 
 class TracingControllerBackendTest(unittest.TestCase):
   def _getControllerEventsAslist(self, data):
@@ -365,3 +373,19 @@ class TracingControllerBackendTest(unittest.TestCase):
     with self.controller._DisableGarbageCollection():
       self.assertFalse(gc.isenabled())
     self.assertTrue(gc.isenabled())
+
+  @decorators.Isolated
+  def testBattOrStartTracingErrorIsntFatal(self):
+    self.controller._supported_agents_classes = [
+        FakeTracingAgentStartAndClockSync,
+        BattOrTracingAgentStartTracingThrows
+    ]
+    self.assertFalse(self.controller.is_tracing_running)
+    self.assertTrue(self.controller.StartTracing(self.config, 30))
+    self.assertTrue(self.controller.is_tracing_running)
+    self.assertEquals(len(self.controller._active_agents_instances), 1)
+    self.controller._IssueClockSyncMarker()
+    data = self.controller.StopTracing()
+    self.assertFalse(self.controller.is_tracing_running)
+    self.assertEquals(self._getSyncCount(data), 1)
+    self.assertEquals(self._getControllerClockDomain(data), "TELEMETRY")

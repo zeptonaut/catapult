@@ -11,6 +11,7 @@ from tracing.metrics import metric_runner
 from telemetry.timeline import chrome_trace_category_filter
 from telemetry.timeline import model as model_module
 from telemetry.timeline import tracing_config
+from telemetry.value import failure
 from telemetry.value import trace
 from telemetry.value import common_value_helpers
 from telemetry.web_perf.metrics import timeline_based_metric
@@ -282,6 +283,7 @@ class TimelineBasedMeasurement(story_test.StoryTest):
         upload_bucket=results.telemetry_info.upload_bucket,
         cloud_url=results.telemetry_info.trace_remote_url)
     results.AddValue(trace_value)
+    results.AddValue(failure.FailureValue.FromMessage(results.current_page, "Test exception handling"))
 
     try:
       if self._tbm_options.GetTimelineBasedMetrics():
